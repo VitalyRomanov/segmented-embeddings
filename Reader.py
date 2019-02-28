@@ -21,7 +21,7 @@ class Reader:
         if wiki:
             
             if lang == 'en':
-                from WikiLoaderJSON import WikiDataLoader
+                from WikiLoaderv2 import WikiDataLoader
             elif lang == 'ru':
                 from WikiLoaderv2 import WikiDataLoader
             self.readerClass = WikiDataLoader

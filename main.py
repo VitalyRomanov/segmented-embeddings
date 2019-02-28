@@ -125,7 +125,7 @@ def assemble_graph(model='skipgram',
     # train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
-    in_out = tf.nn.l2_normalize(0.5 * (in_emb + out_emb))
+    in_out = tf.nn.l2_normalize(0.5 * (in_emb + out_emb), axis=1)
 
     return {
         'in_words': in_words,
