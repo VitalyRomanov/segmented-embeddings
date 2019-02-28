@@ -5,6 +5,7 @@ from Reader import Reader
 from WordSegmenter import WordSegmenter
 import pickle
 import argparse
+import numpy as np
 
 parser = argparse.ArgumentParser(description='Train word vectors')
 parser.add_argument('-d', type=int, default=50, dest='dimensionality', help='Trained embedding dimensionality')
@@ -36,7 +37,7 @@ sgm_path = args.segmenter
 
 graph_saving_path = "./models/%s" % model_name
 ckpt_path = "%s/model.ckpt" % graph_saving_path
-vocab_progressions = [10000, 20000, 50000, 100000, 200000]
+vocab_progressions = [10000, 20000, 50000, 100000, 150000]
 
 
 def assemble_graph(model='skipgram',
@@ -78,8 +79,8 @@ def assemble_graph(model='skipgram',
         in_words = tf.placeholder(dtype=tf.int32, shape=(None,max_word_segments), name="in_words")
         out_words = tf.placeholder(dtype=tf.int32, shape=(None,max_word_segments), name="out_words")
 
-        in_emb = tf.reduce_sum(tf.nn.embedding_lookup(in_matr, in_words), axis=2)
-        out_emb = tf.reduce_sum(tf.nn.embedding_lookup(out_matr, out_words), axis=2)
+        in_emb = tf.reduce_sum(tf.nn.embedding_lookup(in_matr, in_words), axis=1)
+        out_emb = tf.reduce_sum(tf.nn.embedding_lookup(out_matr, out_words), axis=1)
 
     elif model == "attentive":
 
@@ -100,7 +101,8 @@ def assemble_graph(model='skipgram',
         emb_segments_out_r = tf.reshape(emb_segments_out, (-1, max_word_segments * emb_size))
 
         def attention_layer(input_):
-            joined_attention = tf.layers.dense(input_, max_word_segments * emb_size, name='joined_attention')
+            d_out = tf.nn.dropout(input_, keep_prob=0.7)
+            joined_attention = tf.layers.dense(d_out, max_word_segments * emb_size, name='joined_attention')
             attention_mask = tf.reshape(joined_attention, (-1, max_word_segments, emb_size), name='attention_mask')
             soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
             return soft_attention
@@ -125,7 +127,7 @@ def assemble_graph(model='skipgram',
     # train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
-    in_out = tf.nn.l2_normalize(0.5 * (in_emb + out_emb), 1)
+    in_out = tf.nn.l2_normalize(0.5 * (in_emb + out_emb), axis=1)
 
     return {
         'in_words': in_words,
@@ -139,19 +141,42 @@ def assemble_graph(model='skipgram',
     }
 
 
-def embedder(in_out_tensor,
-             vocab_size,
+def embedder(vocab_size,
              emb_size):
     with tf.variable_scope('embeddings_%d' % vocab_size) as scope:
         final = tf.get_variable("final_%d" % vocab_size, shape=(vocab_size, emb_size))
 
         embs = tf.placeholder(shape=(vocab_size, emb_size), name="vocab_%d_pl" % vocab_size, dtype=tf.float32)
+        ids = tf.placeholder(shape=(None, ), name="lookup_ids_%d_pl" % vocab_size, dtype=tf.int32)
 
         assign = tf.assign(final, embs)
 
+        lookup = tf.nn.embedding_lookup(final, ids, name="lookup_%d_pl" % vocab_size)
+
     return {
         'assign': assign,
+        'embs': embs,
+        'lookup': lookup,
+        'ids': ids,
+        'final': final
     }
+
+def assign_embeddings(sess, summary_writer, in_out_tensor, in_tensor, out_tensor, vocab_size, embedders):
+    print("\t\tAssigning vocabulary of size %d" % vocab_size)
+    ids = np.array(list(range(vocab_size)))
+    if model_name != 'skipgram':
+        ids_expanded = segmenter.segment(ids)
+    else:
+        ids_expanded = ids
+    in_out = sess.run(in_out_tensor, {in_tensor: ids_expanded, out_tensor: ids_expanded})
+    sess.run(embedders[vocab_size]['assign'], {embedders[vocab_size]['embs']: in_out})
+
+    embs = sess.run(embedders[vocab_size]['lookup'], {embedders[vocab_size]['ids']: ids})
+
+    save_path = saver.save(sess, ckpt_path)
+
+    dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
+    pickle.dump(embs, open(dump_path, "wb"))
 
 
 import time
@@ -235,13 +260,13 @@ saveloss_ = tf.summary.scalar('loss', loss_)
 
 
 
-embedders = {voc_size: embedder(in_out_, voc_size, n_dims) for voc_size in vocab_progressions}
+embedders = {voc_size: embedder(voc_size, n_dims) for voc_size in vocab_progressions}
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 
-    sys.exit()
+    # sys.exit()
 
     # Restore from checkpoint
     # saver.restore(sess, ckpt_path)
@@ -278,6 +303,10 @@ with tf.Session() as sess:
                     summary_writer.add_summary(summary, batch_count)
 
                 batch = next_batch(from_top_n=vocab_size)
+                # break
+
+        assign_embeddings(sess, summary_writer, in_out_, in_words_, out_words_, vocab_size, embedders)
+
 
         save_path = saver.save(sess, graph_saving_path+"_"+str(vocab_size)+"_"+str(batch_count))
         epochs += 2
