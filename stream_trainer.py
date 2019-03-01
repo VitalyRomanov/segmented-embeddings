@@ -7,10 +7,8 @@ import pickle
 import argparse
 import numpy as np
 import time
-import resource
 import gc
 
-resource.setrlimit(resource.RLIMIT_AS, (2**34, resource.RLIM_INFINITY))
 
 sys.stdin.readline()
 sys.stdin.readline()
@@ -349,7 +347,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
                 gc_count += 1
                 if gc_count % 100 == 0:
-                    print("Collected %d objects in reader" % gc.collect(2))
+                    print("Collected %d objects in trainer" % gc.collect(2))
 
     save_snapshot(sess, terminals, vocab_size, embedders)
 

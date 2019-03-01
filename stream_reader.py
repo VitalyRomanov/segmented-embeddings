@@ -3,10 +3,8 @@ from Vocabulary import Vocabulary
 from Reader import Reader
 import pickle
 import argparse
-import resource
 import gc
 
-resource.setrlimit(resource.RLIMIT_AS, (2**34, resource.RLIM_INFINITY))
 
 parser = argparse.ArgumentParser(description='Train word vectors')
 parser.add_argument('-d', type=int, default=150, dest='dimensionality', help='Trained embedding dimensionality')
