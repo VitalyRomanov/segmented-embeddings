@@ -285,7 +285,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     lr_: learn_rate
                 })
 
-                if batch_count % 1000 == 0:
+                if batch_count % 10000 == 0:
                     # in_words, out_words, labels = first_batch
                     loss_val, summary = sess.run([loss_, saveloss_], {
                         in_words_: in_b,
