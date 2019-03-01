@@ -3,7 +3,6 @@ from Vocabulary import Vocabulary
 from Reader import Reader
 import pickle
 import argparse
-import gc
 
 
 parser = argparse.ArgumentParser(description='Train word vectors')
@@ -87,7 +86,6 @@ def seld_line(a, p, l):
     #     print("%d\t%d\t%d" % (a, p, l))
     #     # sys.stdout.write("%s\t%s\t%d\n" % (a, p, l))
 
-gc_count = 0
 
 for vocab_size in vocab_progressions:
 
@@ -104,8 +102,5 @@ for vocab_size in vocab_progressions:
                 # pass
             batch = next_batch(from_top_n=vocab_size)
             # print("boom")
-            gc_count += 1
-            if gc_count % 100 == 0:
-                print("Collected %d objects in reader" % gc.collect(2))
 
     epochs += 2

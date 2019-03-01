@@ -7,7 +7,6 @@ import pickle
 import argparse
 import numpy as np
 import time
-import gc
 
 
 sys.stdin.readline()
@@ -114,16 +113,14 @@ def assemble_graph(model='skipgram',
     else:
         raise NotImplementedError("Invalid model name: %s" % model)
 
+    final = tf.nn.l2_normalize(in_emb, axis=1)
 
     logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product")
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
     loss = tf.reduce_mean(per_item_loss, axis=0)
 
-    # train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
-
-    in_out = tf.nn.l2_normalize(0.5 * (in_emb + out_emb), axis=1)
 
     return {
         'in_words': in_words,
@@ -132,49 +129,27 @@ def assemble_graph(model='skipgram',
         'loss': loss,
         'train': train,
         'adder': adder,
-        'in_out': in_out,
         'learning_rate': learning_rate,
-        'batch_count': counter
-    }
-
-
-def embedder(vocab_size,
-             emb_size):
-    with tf.variable_scope('embeddings_%d' % vocab_size) as scope:
-        final = tf.get_variable("final_%d" % vocab_size, shape=(vocab_size, emb_size))
-
-        embs = tf.placeholder(shape=(vocab_size, emb_size), name="vocab_%d_pl" % vocab_size, dtype=tf.float32)
-        ids = tf.placeholder(shape=(None, ), name="lookup_ids_%d_pl" % vocab_size, dtype=tf.int32)
-
-        assign = tf.assign(final, embs)
-
-        lookup = tf.nn.embedding_lookup(final, ids, name="lookup_%d_pl" % vocab_size)
-
-    return {
-        'assign': assign,
-        'embs': embs,
-        'lookup': lookup,
-        'ids': ids,
+        'batch_count': counter,
         'final': final
     }
 
 
-def assign_embeddings(sess, in_out_tensor, in_tensor, out_tensor, vocab_size, embedders):
-    print("\t\tAssigning vocabulary of size %d" % vocab_size)
+def assign_embeddings(sess, terminals, vocab_size):
+    in_words_ = terminals['in_tensor']
+    final_ = terminals['final']
+
+    print("\t\tDumpung vocabulary of size %d" % vocab_size)
     ids = np.array(list(range(vocab_size)))
     if model_name != 'skipgram':
         ids_expanded = segmenter.segment(ids)
     else:
         ids_expanded = ids
-    in_out = sess.run(in_out_tensor, {in_tensor: ids_expanded, out_tensor: ids_expanded})
-    sess.run(embedders[vocab_size]['assign'], {embedders[vocab_size]['embs']: in_out})
 
-    embs = sess.run(embedders[vocab_size]['lookup'], {embedders[vocab_size]['ids']: ids})
-
-    save_path = saver.save(sess, ckpt_path)
+    final = sess.run(final_, {in_words_: ids_expanded})
 
     dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
-    pickle.dump(embs, open(dump_path, "wb"))
+    pickle.dump(final, open(dump_path, "wb"))
 
 
 print("Starting training", time.asctime( time.localtime(time.time()) ))
@@ -205,7 +180,6 @@ labels_ = terminals['labels']
 train_ = terminals['train']
 loss_ = terminals['loss']
 adder_ = terminals['adder']
-in_out_ = terminals['in_out']
 lr_ = terminals['learning_rate']
 batch_count_ = terminals['batch_count']
 
@@ -214,10 +188,7 @@ saver = tf.train.Saver()
 saveloss_ = tf.summary.scalar('loss', loss_)
 
 
-embedders = {voc_size: embedder(voc_size, n_dims) for voc_size in vocab_progressions}
-
-
-def parse_model_input(model_name, line):
+def parse_model_input(line):
 
     try:
         a_, p_, l_ = line.split("\t")
@@ -229,20 +200,6 @@ def parse_model_input(model_name, line):
     p = int(p_)
     l = int(l_)
     return a, p, l, True
-
-    # if model_name != 'skipgram':
-    #
-    #     a = list(map(int, a_.split()))
-    #     p = list(map(int, p_.split()))
-    #     l = [int(l_)]
-    #     return a, p, l, True
-    #
-    # else:
-    #     a_, p_, l_ = line.split("\t")
-    #     a = [int(a_)]
-    #     p = [int(p_)]
-    #     l = [int(l_)]
-    #     return a, p, l, True
 
 
 in_batch = []
@@ -257,13 +214,8 @@ def flush():
     lbl_batch = []
 
 
-def save_snapshot(sess, terminals, vocab_size, embedders):
+def save_snapshot(sess, terminals, vocab_size):
     batch_count = sess.run(terminals['batch_count'])
-    assign_embeddings(sess, terminals['in_out'],
-                      terminals['in_words'],
-                      terminals['out_words'],
-                      vocab_size,
-                      embedders)
     path = "./models/%s_%d_%d" % (model_name, vocab_size, batch_count)
     ckpt_p = "%s/model.ckpt" % path
     save_path = saver.save(sess, ckpt_p)
@@ -301,7 +253,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     epoch = 0
                     flush()
 
-                    save_snapshot(sess, terminals, vocab_size, embedders)
+                    save_snapshot(sess, terminals, vocab_size)
 
                     epochs += 2
 
@@ -315,7 +267,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
         learn_rate = 0.025 * (1. - epoch / epochs)
 
-        in_, out_, lbl_, valid = parse_model_input(model_name, line.strip())
+        in_, out_, lbl_, valid = parse_model_input(line.strip())
 
         if valid:
             in_batch.append(in_)
@@ -323,7 +275,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             lbl_batch.append(lbl_)
 
             if len(in_batch) == batch_size:
-                print("Batch ready")
 
                 in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
 
@@ -334,7 +285,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     lr_: learn_rate
                 })
 
-                if batch_count % 10 == 0:
+                if batch_count % 1000 == 0:
                     # in_words, out_words, labels = first_batch
                     loss_val, summary = sess.run([loss_, saveloss_], {
                         in_words_: in_b,
@@ -345,10 +296,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     save_path = saver.save(sess, ckpt_path)
                     summary_writer.add_summary(summary, batch_count)
 
-                gc_count += 1
-                if gc_count % 100 == 0:
-                    print("Collected %d objects in trainer" % gc.collect(2))
+                flush()
 
-    save_snapshot(sess, terminals, vocab_size, embedders)
+    save_snapshot(sess, terminals, vocab_size)
 
 print("Finished trainig", time.asctime( time.localtime(time.time()) ))
