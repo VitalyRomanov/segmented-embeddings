@@ -276,7 +276,8 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
 vocab_size = 10000
 epoch = 0
 
-with tf.Session() as sess:
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     sess.run(tf.global_variables_initializer())
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 

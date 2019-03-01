@@ -5,7 +5,7 @@ import pickle
 import argparse
 
 parser = argparse.ArgumentParser(description='Train word vectors')
-parser.add_argument('-d', type=int, default=50, dest='dimensionality', help='Trained embedding dimensionality')
+parser.add_argument('-d', type=int, default=150, dest='dimensionality', help='Trained embedding dimensionality')
 parser.add_argument('-e', type=int, default=5, dest='epochs', help='Trained embedding dimensionality')
 parser.add_argument('-c', type=int, default=200, dest='context', help='Number of contexts in batch')
 parser.add_argument('-n', type=int, default=5, dest='negative', help='Number of negative samples')
