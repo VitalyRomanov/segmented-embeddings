@@ -5,7 +5,7 @@ import pickle
 import argparse
 import resource
 
-resource.setrlimit(resource.RLIMIT_AS, (2**33, 2**33))
+resource.setrlimit(resource.RLIMIT_AS, (2**33, resource.RLIM_INFINITY))
 
 parser = argparse.ArgumentParser(description='Train word vectors')
 parser.add_argument('-d', type=int, default=150, dest='dimensionality', help='Trained embedding dimensionality')
