@@ -231,6 +231,8 @@ vocab_size = 10000
 epoch = 0
 gc_count = 0
 
+save_every = 2000 * 10000 // batch_size
+
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     sess.run(tf.global_variables_initializer())
@@ -285,7 +287,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     lr_: learn_rate
                 })
 
-                if batch_count % 10000 == 0:
+                if batch_count % save_every == 0:
                     # in_words, out_words, labels = first_batch
                     loss_val, summary = sess.run([loss_, saveloss_], {
                         in_words_: in_b,
