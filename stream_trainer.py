@@ -9,7 +9,7 @@ import numpy as np
 import time
 import resource
 
-resource.setrlimit(resource.RLIMIT_AS, (2**33, resource.RLIM_INFINITY))
+resource.setrlimit(resource.RLIMIT_AS, (2**34, 2**34))
 
 sys.stdin.readline()
 sys.stdin.readline()
