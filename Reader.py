@@ -68,10 +68,10 @@ class Reader:
     def get_tokens(self, from_top_n):
         nl = self.read_next()
         if nl == "" or nl is None:
-            self.tokens = None    
+            self.tokens = None
         else:
             # discard old tokens and append new ones
-            new_tokens = self.tokenizer(self.read_next().strip(), lower=True, hyphen=False)
+            new_tokens = self.tokenizer(nl.strip(), lower=True, hyphen=False)
             token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n)
             self.tokens = self.tokens[self.position - self.window_size: -1] + token_ids.tolist()
             self.position = self.window_size
@@ -114,7 +114,7 @@ class Reader:
                 if n != c_token_id:
                     batch.append([c_token_id, n, 0.])
 
-                context_count += 1
+            context_count += 1
 
             self.position += 1
 

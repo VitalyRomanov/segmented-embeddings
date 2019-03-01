@@ -26,14 +26,19 @@ class WordSegmenter:
             self.max_len = maximum_len
 
         for w in self.w2s:
-            z = np.ones((self.max_len,)) * self.s2id["#"]
-            truncated = np.array(self.w2s[w][:min(self.max_len, len(self.w2s[w]))])
+            z = np.ones((self.max_len,), dtype=np.int32) * self.s2id["#"]
+            truncated = np.array(self.w2s[w][:min(self.max_len, len(self.w2s[w]))], dtype=np.int32)
             z[:truncated.size] = truncated
             self.w2s[w] = z
 
+        self.w2s_str = {w: " ".join([str(el) for el in segm]) for w, segm in self.w2s.items()}
 
-    def segment(self, batch):
-        return np.stack([self.w2s[id_] for id_ in batch])
+
+    def segment(self, batch, str_type=False):
+        if str_type:
+            return np.stack([self.w2s_str[id_] for id_ in batch])
+        else:
+            return np.stack([self.w2s[id_] for id_ in batch])
 
     def to_segments(self, batch):
         read = np.vectorize(lambda x: self.id2s[x])

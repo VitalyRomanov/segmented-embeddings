@@ -82,7 +82,7 @@ class Vocabulary:
 
         # calling np.random is slow. bufferize 100000 random samples and get slices every time the method is called
         if self.uniform_buffer_position + k > self.uniform_buffer.size:
-            self.uniform_buffer = np.random.rand(100000)
+            self.uniform_buffer = np.random.rand(max(1000000, k*10))
             self.uniform_buffer_position = 0
 
         to_keep = np.greater(self.uniform_buffer[self.uniform_buffer_position : self.uniform_buffer_position + k],
@@ -223,9 +223,9 @@ class Vocabulary:
         """
         self._update()
 
-        # calling np.random is slow. bufferize 100000 random samples and get slices every time the method is called
+        # calling np.random is slow. bufferize k*10 random samples and get slices every time the method is called
         if self.negative_buffer_position + k > len(self.negative_buffer):
-            self.negative_buffer = np.random.choice(np.array(list(self.id_count.keys())), 100000, p=self.noise_weight)
+            self.negative_buffer = np.random.choice(np.array(list(self.id_count.keys())), 1000000, p=self.noise_weight)
             self.negative_buffer_position = 0
 
         sample = self.negative_buffer[self.negative_buffer_position : self.negative_buffer_position + k].tolist()
