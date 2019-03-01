@@ -4,8 +4,9 @@ from Reader import Reader
 import pickle
 import argparse
 import resource
+import gc
 
-resource.setrlimit(resource.RLIMIT_AS, (2**34, 2**34))
+resource.setrlimit(resource.RLIMIT_AS, (2**34, resource.RLIM_INFINITY))
 
 parser = argparse.ArgumentParser(description='Train word vectors')
 parser.add_argument('-d', type=int, default=150, dest='dimensionality', help='Trained embedding dimensionality')
@@ -88,6 +89,8 @@ def seld_line(a, p, l):
     #     print("%d\t%d\t%d" % (a, p, l))
     #     # sys.stdout.write("%s\t%s\t%d\n" % (a, p, l))
 
+gc_count = 0
+
 for vocab_size in vocab_progressions:
 
     print("vocab=%d" % vocab_size)
@@ -103,5 +106,8 @@ for vocab_size in vocab_progressions:
                 # pass
             batch = next_batch(from_top_n=vocab_size)
             # print("boom")
+            gc_count += 1
+            if gc_count % 100 == 0:
+                print("Collected %d objects in reader" % gc.collect(2))
 
     epochs += 2

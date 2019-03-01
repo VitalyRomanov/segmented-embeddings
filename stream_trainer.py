@@ -8,8 +8,9 @@ import argparse
 import numpy as np
 import time
 import resource
+import gc
 
-resource.setrlimit(resource.RLIMIT_AS, (2**34, 2**34))
+resource.setrlimit(resource.RLIMIT_AS, (2**34, resource.RLIM_INFINITY))
 
 sys.stdin.readline()
 sys.stdin.readline()
@@ -278,6 +279,7 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
 
 vocab_size = 10000
 epoch = 0
+gc_count = 0
 
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -323,6 +325,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             lbl_batch.append(lbl_)
 
             if len(in_batch) == batch_size:
+                print("Batch ready")
 
                 in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
 
@@ -343,6 +346,10 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
                     save_path = saver.save(sess, ckpt_path)
                     summary_writer.add_summary(summary, batch_count)
+
+                gc_count += 1
+                if gc_count % 100 == 0:
+                    print("Collected %d objects in reader" % gc.collect(2))
 
     save_snapshot(sess, terminals, vocab_size, embedders)
 
