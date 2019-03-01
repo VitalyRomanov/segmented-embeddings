@@ -7,6 +7,9 @@ import pickle
 import argparse
 import numpy as np
 import time
+import resource
+
+resource.setrlimit(resource.RLIMIT_AS, (8*10**9, resource.RLIM_INFINITY))
 
 sys.stdin.readline()
 sys.stdin.readline()
