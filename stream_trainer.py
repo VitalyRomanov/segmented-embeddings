@@ -218,6 +218,7 @@ def save_snapshot(sess, terminals, vocab_size):
     batch_count = sess.run(terminals['batch_count'])
     path = "./models/%s_%d_%d" % (model_name, vocab_size, batch_count)
     ckpt_p = "%s/model.ckpt" % path
+    assign_embeddings(sess, terminals, vocab_size)
     save_path = saver.save(sess, ckpt_p)
 
 
