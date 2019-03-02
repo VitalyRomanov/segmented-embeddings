@@ -66,6 +66,8 @@ if model_name != 'skipgram':
     segm_voc_size = segmenter.unique_segments
     word_segments = segmenter.max_len
 
+    print("Max Word Len is %d segments" % word_segments)
+
     terminals = assemble_graph(model=model_name,
                                segment_vocab_size=segm_voc_size,
                                max_word_segments=word_segments,
@@ -146,8 +148,8 @@ with tf.Session() as sess:
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 
     # Restore from checkpoint
-    # saver.restore(sess, ckpt_path)
-    # sess.graph.as_default()
+    saver.restore(sess, ckpt_path)
+    sess.graph.as_default()
 
     for line in iter(sys.stdin.readline, ""):
 
@@ -174,7 +176,7 @@ with tf.Session() as sess:
             else:
                 raise Exception("Unknown sequence: %s" % line.strip())
 
-        learn_rate = 0.025 * (1. - epoch / epochs)
+        learn_rate = 0.001 # 0.025 * (1. - epoch / epochs)
 
         in_, out_, lbl_, valid = parse_model_input(line.strip())
 
