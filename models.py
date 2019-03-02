@@ -33,6 +33,7 @@ def assemble_graph(model='skipgram',
 
     elif model == 'fasttext' or model == 'morph':
 
+        assert vocab_size is not None
         assert segment_vocab_size is not None
         assert max_word_segments is not None
         assert emb_size is not None

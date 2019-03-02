@@ -32,11 +32,8 @@ full_voc_size = int(args['full_vocabulary_size'])
 batch_size = int(args['batch_size'])
 graph_saving_path = args['graph_saving_path']
 ckpt_path = args['ckpt_path']
-
-
-# vocab_progressions = [10000, 20000, 50000, 100000, 200000]
-
-
+restore = int(args['restore'])
+gpu_mem = args['gpu_mem']
 
 
 
@@ -69,6 +66,7 @@ if model_name != 'skipgram':
     print("Max Word Len is %d segments" % word_segments)
 
     terminals = assemble_graph(model=model_name,
+                               vocab_size=full_voc_size,
                                segment_vocab_size=segm_voc_size,
                                max_word_segments=word_segments,
                                emb_size=n_dims)
@@ -131,25 +129,31 @@ def save_snapshot(sess, terminals, vocab_size):
 
 def create_batch(model_name, in_batch, out_batch, lbl_batch):
     if model_name != 'skipgram':
-        return sgm(np.array(in_batch)), sgm(np.array(out_batch)), np.float32(np.array(lbl_batch))
+        return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
     else:
         return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
 
-vocab_size = 20000
+vocab_size = 50000
 epoch = 0
-gc_count = 0
 
-save_every = 2000 * 100000 // batch_size
+save_every = 2000 * 50000 // batch_size
 
-# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
-# with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-with tf.Session() as sess:
+
+if gpu_mem == 'None':
+    gpu_options = tf.GPUOptions()
+else:
+    frac = float(gpu_mem)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=frac)
+
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+# with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 
     # Restore from checkpoint
-    saver.restore(sess, ckpt_path)
-    sess.graph.as_default()
+    if restore:
+        saver.restore(sess, ckpt_path)
+        sess.graph.as_default()
 
     for line in iter(sys.stdin.readline, ""):
 

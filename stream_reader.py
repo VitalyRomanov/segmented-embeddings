@@ -17,6 +17,8 @@ parser.add_argument('-s', type=float, default=1e-4, dest='subsampling_parameter'
 parser.add_argument('-l', type=str, default='en', dest='language', help='Language of wikipedia dump')
 parser.add_argument('-sgm', type=str, dest='segmenter', help='Segmenter Path')
 parser.add_argument('-wiki', type=bool, default=False, dest='wiki', help='Read from wikipedia dump')
+parser.add_argument('-r', type=int, default=False, dest='restore', help='Restore from checkpoint')
+parser.add_argument('-gm', type=float, default=None, dest='gpu_mem', help='Fraction of GPU memory to use')
 parser.add_argument('data_path', type=str, help='Path to training data. Can be plain file or wikipedia dump. Set flag \'--wiki\' if using wiki dump')
 parser.add_argument('voc_path', type=str, help='Path to vocabulary dump')
 
@@ -37,7 +39,7 @@ sgm_path = args.segmenter
 graph_saving_path = "./models/%s" % model_name
 ckpt_path = "%s/model.ckpt" % graph_saving_path
 
-vocab_progressions = [50000, 100000, 200000]
+vocab_progressions = [100000, 200000]
 
 voc = pickle.load(open(vocabulary_path, "rb"))
 
