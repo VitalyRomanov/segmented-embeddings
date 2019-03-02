@@ -37,7 +37,7 @@ sgm_path = args.segmenter
 graph_saving_path = "./models/%s" % model_name
 ckpt_path = "%s/model.ckpt" % graph_saving_path
 
-vocab_progressions = [20000, 50000, 100000, 200000]
+vocab_progressions = [50000, 100000, 200000]
 
 voc = pickle.load(open(vocabulary_path, "rb"))
 

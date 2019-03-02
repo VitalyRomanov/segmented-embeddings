@@ -135,11 +135,11 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
     else:
         return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
 
-vocab_size = 10000
+vocab_size = 20000
 epoch = 0
 gc_count = 0
 
-save_every = 2000 * 10000 // batch_size
+save_every = 2000 * 100000 // batch_size
 
 # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
 # with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
