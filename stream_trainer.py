@@ -8,6 +8,8 @@ import argparse
 import numpy as np
 import time
 
+from models import assemble_graph
+
 
 sys.stdin.readline()
 sys.stdin.readline()
@@ -35,108 +37,11 @@ ckpt_path = args['ckpt_path']
 # vocab_progressions = [10000, 20000, 50000, 100000, 200000]
 
 
-def assemble_graph(model='skipgram',
-                   vocab_size=None,
-                   emb_size=None,
-                   segment_vocab_size=None,
-                   max_word_segments=None):
 
-    counter = tf.Variable(0, dtype=tf.int32)
-    adder = tf.assign(counter, counter + 1)
-
-    learning_rate = tf.placeholder(dtype=tf.float32, shape=(), name='learn_rate')
-    labels = tf.placeholder(dtype=tf.float32, shape=(None,), name="labels")
-
-    if model == 'skipgram':
-
-        assert vocab_size is not None
-        assert emb_size is not None
-
-        # embedding matrices
-        in_matr = tf.get_variable("IN", shape=(vocab_size, emb_size), dtype=tf.float32)
-        out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32)
-
-        in_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="in_words")
-        out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
-
-        in_emb = tf.nn.embedding_lookup(in_matr, in_words)
-        out_emb = tf.nn.embedding_lookup(out_matr, out_words)
-
-    elif model == 'fasttext' or model == 'morph':
-
-        assert segment_vocab_size is not None
-        assert max_word_segments is not None
-        assert emb_size is not None
-
-        in_matr = tf.get_variable("IN", shape=(segment_vocab_size, emb_size), dtype=tf.float32)
-        out_matr = tf.get_variable("OUT", shape=(segment_vocab_size, emb_size), dtype=tf.float32)
-
-        in_words = tf.placeholder(dtype=tf.int32, shape=(None,max_word_segments), name="in_words")
-        out_words = tf.placeholder(dtype=tf.int32, shape=(None,max_word_segments), name="out_words")
-
-        in_emb = tf.reduce_sum(tf.nn.embedding_lookup(in_matr, in_words), axis=1)
-        out_emb = tf.reduce_sum(tf.nn.embedding_lookup(out_matr, out_words), axis=1)
-
-    elif model == "attentive":
-
-        assert segment_vocab_size is not None
-        assert max_word_segments is not None
-        assert emb_size is not None
-
-        in_matr = tf.get_variable("IN", shape=(segment_vocab_size, emb_size), dtype=tf.float32)
-        out_matr = tf.get_variable("OUT", shape=(segment_vocab_size, emb_size), dtype=tf.float32)
-
-        in_words = tf.placeholder(dtype=tf.int32, shape=(None, max_word_segments), name="in_words")
-        out_words = tf.placeholder(dtype=tf.int32, shape=(None, max_word_segments), name="out_words")
-
-        emb_segments_in = tf.nn.embedding_lookup(in_matr, in_words)
-        emb_segments_out = tf.nn.embedding_lookup(out_matr, out_words)
-
-        emb_segments_in_r = tf.reshape(emb_segments_in, (-1, max_word_segments * emb_size))
-        emb_segments_out_r = tf.reshape(emb_segments_out, (-1, max_word_segments * emb_size))
-
-        def attention_layer(input_):
-            d_out = tf.nn.dropout(input_, keep_prob=0.7)
-            joined_attention = tf.layers.dense(d_out, max_word_segments * emb_size, name='joined_attention')
-            attention_mask = tf.reshape(joined_attention, (-1, max_word_segments, emb_size), name='attention_mask')
-            soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
-            return soft_attention
-
-        with tf.variable_scope('attention') as att_scope:
-            emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
-            att_scope.reuse_variables()
-            emb_segments_out_attention_mask = attention_layer(emb_segments_out_r)
-
-        in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
-        out_emb = tf.reduce_sum(emb_segments_out * emb_segments_out_attention_mask, axis=1)
-
-    else:
-        raise NotImplementedError("Invalid model name: %s" % model)
-
-    final = tf.nn.l2_normalize(in_emb, axis=1)
-
-    logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product")
-    per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
-
-    loss = tf.reduce_mean(per_item_loss, axis=0)
-
-    train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
-
-    return {
-        'in_words': in_words,
-        'out_words': out_words,
-        'labels': labels,
-        'loss': loss,
-        'train': train,
-        'adder': adder,
-        'learning_rate': learning_rate,
-        'batch_count': counter,
-        'final': final
-    }
 
 
 def assign_embeddings(sess, terminals, vocab_size):
-    in_words_ = terminals['in_tensor']
+    in_words_ = terminals['in_words']
     final_ = terminals['final']
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
@@ -259,7 +164,7 @@ with tf.Session() as sess:
 
                     save_snapshot(sess, terminals, vocab_size)
 
-                    epochs += 2
+                    epochs += 0
 
                     vocab_size = new_vocab_size
 
