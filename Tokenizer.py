@@ -87,26 +87,41 @@ def replace_accents_rus(sent_orig):
     sent = sent.replace("я̀", "я")
     sent = sent.replace(b"\u0301".decode('utf8'), "")
     sent = sent.replace(b"\u00AD".decode('utf8'), "")
-    # sent = sent.replace(b"\xa0".decode('utf8'), " ")
+    # sent = sent.replace(b"\u00xa0".decode('utf8'), " ")
     return sent
 
 
-class Tokenizer:
+from nltk.tokenize import  RegexpTokenizer
 
-    def __call__(self,lines, lower = False, split = True, hyphen=True):
-        lines = lines.strip().split("\n")
-        tokenized = ""
-        for line in lines:
-            if lower:
-                tokenized += expandall(line.lower(), hyphen)[:-1]
-            else:
-                tokenized += expandall(line, hyphen)
-            # if len(lines) > 1:
-            #     tokenized += " N "
-        if split:
-            return tokenized.split()
-        else:
-            return tokenized
+
+class Tokenizer:
+    def __init__(self):
+        self.tokenizer = RegexpTokenizer('\w+|[^\w\s]')
+
+    def __call__(self, lines, lower = False, split = True, hyphen=True):
+
+        if lower:
+            lines = lines.lower()
+        lines = replace_accents_rus(lines)
+        return self.tokenizer.tokenize(lines)
+
+
+# class Tokenizer:
+#
+#     def __call__(self,lines, lower = False, split = True, hyphen=True):
+#         lines = lines.strip().split("\n")
+#         tokenized = ""
+#         for line in lines:
+#             if lower:
+#                 tokenized += expandall(line.lower(), hyphen)[:-1]
+#             else:
+#                 tokenized += expandall(line, hyphen)
+#             # if len(lines) > 1:
+#             #     tokenized += " N "
+#         if split:
+#             return tokenized.split()
+#         else:
+#             return tokenized
 
 
 import pickle

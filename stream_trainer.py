@@ -32,7 +32,7 @@ graph_saving_path = args['graph_saving_path']
 ckpt_path = args['ckpt_path']
 
 
-vocab_progressions = [10000, 20000, 50000, 100000, 200000]
+# vocab_progressions = [10000, 20000, 50000, 100000, 200000]
 
 
 def assemble_graph(model='skipgram',
@@ -233,8 +233,9 @@ gc_count = 0
 
 save_every = 2000 * 10000 // batch_size
 
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
-with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
+# with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 

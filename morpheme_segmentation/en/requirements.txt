@@ -1,0 +1,4 @@
+Morfessor==2.0.4
+polyglot==16.7.4
+pycld2==0.31
+PyICU==2.2

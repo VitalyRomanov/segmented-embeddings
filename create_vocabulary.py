@@ -17,7 +17,8 @@ if __name__=="__main__":
     out_name = sys.argv[3]
 
     if lang == 'en':
-        from WikiLoaderJSON import WikiDataLoader
+        # from WikiLoaderJSON import WikiDataLoader
+        from WikiLoaderv2 import WikiDataLoader
     elif lang == 'ru':
         from WikiLoaderv2 import WikiDataLoader
 
@@ -27,17 +28,12 @@ if __name__=="__main__":
     wiki_doc = wiki.next_doc()
     tok = Tokenizer()
 
-    counter = 0 
-    
     while wiki_doc:
         # tokens = word_tokenize(wiki_doc.strip(), preserve_line=True)
         tokens = tok(wiki_doc, lower=True, hyphen=False)
         # print(tokens)
         # sys.exit()
         voc.add_words(tokens)
-        counter += 1
-        if counter % 10000 == 0:
-            print(counter)
 
         wiki_doc = wiki.next_doc()
 

@@ -1,6 +1,11 @@
 import numpy as np
 from Tokenizer import Tokenizer
 
+def rolling_window(a, window):
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
 class Reader:
     """
     Reader for implementing skipgram negative sampling
@@ -63,7 +68,7 @@ class Reader:
         # read initial set of tokens
         self.tokens = self.voc.get_ids(
             self.tokenizer(self.read_next().strip(), lower=True, hyphen=False)
-            ).tolist()
+            )
 
     def get_tokens(self, from_top_n):
         nl = self.read_next()
@@ -73,7 +78,8 @@ class Reader:
             # discard old tokens and append new ones
             new_tokens = self.tokenizer(nl.strip(), lower=True, hyphen=False)
             token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n)
-            self.tokens = self.tokens[self.position - self.window_size: -1] + token_ids.tolist()
+            # self.tokens = self.tokens[self.position - self.window_size: -1] + token_ids.tolist()
+            self.tokens = np.concatenate([self.tokens[self.position - self.window_size: -1], token_ids], axis=0)
             self.position = self.window_size
 
     def next_batch(self, from_top_n=None):
@@ -85,6 +91,38 @@ class Reader:
         batch = []
         context_count = 0
 
+        while self.tokens is not None and self.position + self.n_contexts + self.window_size + 1 > len(self.tokens):
+            self.get_tokens(from_top_n)
+
+        if self.tokens is None:
+            self.init()
+            return None
+
+        tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size]
+        # token shape (self.n_contexts + 2*self.window_size,)
+
+        windows = rolling_window(tokens, self.window_size * 2 + 1)
+        # windows shape (self.n_contexts, 2*self.window_size + 1)
+
+        neg = self.voc.sample_negative(self.k * self.n_contexts)
+        # neg shape (self.n_contexts * self.k, )
+
+        central_w = (windows[:, self.window_size].reshape(-1,1) * np.ones((1, 2 * self.window_size), dtype=np.int32)).reshape((-1,))
+        # central_w shape (self.n_contexts, 2 * self.window_size)
+        central_neg = (windows[:, self.window_size].reshape(-1, 1) * np.ones((1, self.k), dtype=np.int32)).reshape((-1,))
+        # central_neg shape (self.n_contexts, self.k)
+
+        context_words = np.concatenate([windows[:, :self.window_size], windows[:, self.window_size + 1:]], axis=1).reshape((-1,))
+
+        central_ = np.concatenate([central_w, central_neg], axis=0)
+        context_ = np.concatenate([context_words, neg], axis=0)
+        labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
+
+        self.position += self.n_contexts + self.window_size
+
+        return central_, context_, labels_
+
+        #########################
         while self.tokens is not None and context_count < self.n_contexts:
             # get more tokens if necessary
             while self.tokens is not None and self.position + self.window_size + 1 > len(self.tokens):
