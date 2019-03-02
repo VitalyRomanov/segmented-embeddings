@@ -36,6 +36,12 @@ restore = int(args['restore'])
 gpu_mem = args['gpu_mem']
 
 
+if restore:
+    print("Restoring from checkpoint")
+else:
+    print("Training from scratch")
+
+
 
 def assign_embeddings(sess, terminals, vocab_size):
     in_words_ = terminals['in_words']
