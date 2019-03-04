@@ -60,7 +60,7 @@ def assign_embeddings(sess, terminals, vocab_size):
     pickle.dump(final, open(dump_path, "wb"))
 
 
-print("Starting training", time.asctime( time.localtime(time.time()) ))
+print("Starting saving", time.asctime( time.localtime(time.time()) ))
 
 if model_name != 'skipgram':
     segmenter = WordSegmenter(sgm_path, lang)
@@ -99,31 +99,6 @@ saver = tf.train.Saver()
 saveloss_ = tf.summary.scalar('loss', loss_)
 
 
-def parse_model_input(line):
-
-    try:
-        a_, p_, l_ = line.split("\t")
-    except:
-        print(line)
-        return -1, -1, -1, False
-
-    a = int(a_)
-    p = int(p_)
-    l = int(l_)
-    return a, p, l, True
-
-
-in_batch = []
-out_batch = []
-lbl_batch = []
-
-
-def flush():
-    global in_batch, out_batch, lbl_batch
-    in_batch = []
-    out_batch = []
-    lbl_batch = []
-
 
 def save_snapshot(sess, terminals, vocab_size):
     batch_count = sess.run(terminals['batch_count'])
@@ -132,15 +107,6 @@ def save_snapshot(sess, terminals, vocab_size):
     assign_embeddings(sess, terminals, vocab_size)
     save_path = saver.save(sess, ckpt_p)
 
-
-def create_batch(model_name, in_batch, out_batch, lbl_batch):
-    if model_name != 'skipgram':
-        if model_name == "attentive":
-            return sgm(np.array(in_batch))[:,:-1], np.array(out_batch)[:,:-1], np.float32(np.array(lbl_batch))
-        else:
-            return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
-    else:
-        return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
 
 vocab_size = 100000
 epoch = 0
@@ -164,64 +130,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         saver.restore(sess, ckpt_path)
         sess.graph.as_default()
 
-    for line in iter(sys.stdin.readline, ""):
-
-        training_stages = line.strip().split("=")
-
-        if len(training_stages) > 1:
-            if training_stages[0] == 'vocab':
-
-                new_vocab_size = int(training_stages[1])
-
-                if new_vocab_size != vocab_size:
-                    epoch = 0
-                    flush()
-
-                    save_snapshot(sess, terminals, vocab_size)
-
-                    epochs += 0
-
-                    vocab_size = new_vocab_size
-
-            elif training_stages[0] == 'epoch':
-                epoch = int(training_stages[1])
-                flush()
-            else:
-                raise Exception("Unknown sequence: %s" % line.strip())
-
-        learn_rate = 0.001 # 0.025 * (1. - epoch / epochs)
-
-        in_, out_, lbl_, valid = parse_model_input(line.strip())
-
-        if valid:
-            in_batch.append(in_)
-            out_batch.append(out_)
-            lbl_batch.append(lbl_)
-
-            if len(in_batch) == batch_size:
-
-                in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
-
-                _, batch_count = sess.run([train_, adder_], {
-                    in_words_: in_b,
-                    out_words_: out_b,
-                    labels_: lbl_b,
-                    lr_: learn_rate
-                })
-
-                if batch_count % save_every == 0:
-                    # in_words, out_words, labels = first_batch
-                    loss_val, summary = sess.run([loss_, saveloss_], {
-                        in_words_: in_b,
-                        out_words_: out_b,
-                        labels_: lbl_b
-                    })
-                    print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
-                    save_path = saver.save(sess, ckpt_path)
-                    summary_writer.add_summary(summary, batch_count)
-
-                flush()
-
     save_snapshot(sess, terminals, vocab_size)
 
-print("Finished trainig", time.asctime( time.localtime(time.time()) ))
+print("Finished saving", time.asctime( time.localtime(time.time()) ))
