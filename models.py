@@ -11,6 +11,7 @@ def assemble_graph(model='skipgram',
 
     learning_rate = tf.placeholder(dtype=tf.float32, shape=(), name='learn_rate')
     labels = tf.placeholder(dtype=tf.float32, shape=(None,), name="labels")
+    dropout = tf.placeholder(1.0, shape=())
 
     # we always have word embedding matrix
     in_matr = tf.get_variable("IN", shape=(vocab_size, emb_size), dtype=tf.float32)
@@ -54,22 +55,24 @@ def assemble_graph(model='skipgram',
         assert max_word_segments is not None
         assert emb_size is not None
 
+        attentive_seq_len = max_word_segments - 1
+
         pad = tf.zeros(shape=(1, emb_size), name="padding_vector", dtype=tf.float32)
 
         segment_in_matr = tf.get_variable("SEGM_IN", shape=(segment_vocab_size - 1, emb_size), dtype=tf.float32)
 
         in_embedding_matrix = tf.concat([in_matr, segment_in_matr, pad], axis=0)
 
-        in_words = tf.placeholder(dtype=tf.int32, shape=(None, max_word_segments), name="in_words")
+        in_words = tf.placeholder(dtype=tf.int32, shape=(None, attentive_seq_len), name="in_words")
 
         emb_segments_in = tf.nn.embedding_lookup(in_embedding_matrix, in_words)
 
-        emb_segments_in_r = tf.reshape(emb_segments_in, (-1, max_word_segments * emb_size))
+        emb_segments_in_r = tf.reshape(emb_segments_in, (-1, attentive_seq_len * emb_size))
 
         def attention_layer(input_):
-            d_out = tf.nn.dropout(input_, keep_prob=0.7)
-            joined_attention = tf.layers.dense(d_out, max_word_segments, name='joined_attention')
-            attention_mask = tf.reshape(joined_attention, (-1, max_word_segments, 1), name='attention_mask')
+            d_out = tf.nn.dropout(input_, keep_prob=dropout)
+            joined_attention = tf.layers.dense(d_out, attentive_seq_len, name='joined_attention')
+            attention_mask = tf.reshape(joined_attention, (-1, attentive_seq_len, 1), name='attention_mask')
             soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
             return soft_attention
 
@@ -99,5 +102,6 @@ def assemble_graph(model='skipgram',
         'adder': adder,
         'learning_rate': learning_rate,
         'batch_count': counter,
-        'final': final
+        'final': final,
+        'dropout': dropout
     }

@@ -93,6 +93,7 @@ loss_ = terminals['loss']
 adder_ = terminals['adder']
 lr_ = terminals['learning_rate']
 batch_count_ = terminals['batch_count']
+dropout_ = terminals['dropout']
 
 
 saver = tf.train.Saver()
@@ -136,7 +137,7 @@ def save_snapshot(sess, terminals, vocab_size):
 def create_batch(model_name, in_batch, out_batch, lbl_batch):
     if model_name != 'skipgram':
         if model_name == "attentive":
-            return sgm(np.array(in_batch))[:,:-1], np.array(out_batch)[:,:-1], np.float32(np.array(lbl_batch))
+            return sgm(np.array(in_batch))[:,:-1] - segmenter.total_words, np.array(out_batch), np.float32(np.array(lbl_batch))
         else:
             return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
     else:
@@ -206,7 +207,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     in_words_: in_b,
                     out_words_: out_b,
                     labels_: lbl_b,
-                    lr_: learn_rate
+                    lr_: learn_rate,
+                    dropout_: 0.7
                 })
 
                 if batch_count % save_every == 0:
