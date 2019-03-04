@@ -46,6 +46,7 @@ else:
 def assign_embeddings(sess, terminals, vocab_size):
     in_words_ = terminals['in_words']
     final_ = terminals['final']
+    dropout_ = terminals['dropout']
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
     ids = np.array(list(range(vocab_size)))
@@ -54,7 +55,8 @@ def assign_embeddings(sess, terminals, vocab_size):
     else:
         ids_expanded = ids
 
-    final = sess.run(final_, {in_words_: ids_expanded})
+    final = sess.run(final_, {in_words_: ids_expanded,
+                              dropout_: 1.0})
 
     dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
     pickle.dump(final, open(dump_path, "wb"))
@@ -216,7 +218,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     loss_val, summary = sess.run([loss_, saveloss_], {
                         in_words_: in_b,
                         out_words_: out_b,
-                        labels_: lbl_b
+                        labels_: lbl_b,
+                        dropout_: 1.0
                     })
                     print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
                     save_path = saver.save(sess, ckpt_path)
