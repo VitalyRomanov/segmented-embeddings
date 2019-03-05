@@ -1,7 +1,7 @@
 #!/bin/bash
 
 python stream_reader.py \
-    -d 15 \
+    -d 150 \
     -e 1 \
     -c 200 \
     -n 1 \
@@ -12,6 +12,7 @@ python stream_reader.py \
     -m attentive \
     -l en \
     -sgm n_gram_segmentation/en/ \
+    -sgmlen 8 \
     -wiki 1 \
     -r 0 \
      "/Volumes/External/data_sink/en_wiki_tiny/" \

@@ -25,6 +25,7 @@ vocabulary_path = args['voc_path']
 wiki = bool(args['wiki'])
 lang = args['language']
 sgm_path = args['segmenter']
+sgm_len = int(args['segmenter_len'])
 full_voc_size = int(args['full_vocabulary_size'])
 batch_size = int(args['batch_size'])
 graph_saving_path = args['graph_saving_path']
@@ -80,7 +81,7 @@ print("Assembling model", time.asctime( time.localtime(time.time()) ))
 
 
 if model_name != 'skipgram':
-    segmenter = WordSegmenter(sgm_path, lang)
+    segmenter = WordSegmenter(sgm_path, lang, sgm_len)
     sgm = segmenter.segment
 
     segm_voc_size = segmenter.unique_segments

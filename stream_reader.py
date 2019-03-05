@@ -17,6 +17,7 @@ parser.add_argument('-m', type=str, default='skipgram', dest='model_name', help=
 parser.add_argument('-s', type=float, default=1e-4, dest='subsampling_parameter', help='Subsampling threshold')
 parser.add_argument('-l', type=str, default='en', dest='language', help='Language of wikipedia dump')
 parser.add_argument('-sgm', type=str, dest='segmenter', help='Segmenter Path')
+parser.add_argument('-sgmlen', type=int, dest='segmenter_len', help='Maximum length of segmented sequence')
 parser.add_argument('-wiki', type=bool, default=False, dest='wiki', help='Read from wikipedia dump')
 parser.add_argument('-r', type=int, default=False, dest='restore', help='Restore from checkpoint')
 parser.add_argument('-gm', type=float, default=None, dest='gpu_mem', help='Fraction of GPU memory to use')

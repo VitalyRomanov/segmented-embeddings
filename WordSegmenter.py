@@ -33,8 +33,8 @@ class WordSegmenter:
             z = np.ones((self.max_len,), dtype=np.int32) * self.padding
             truncated = np.array(self.w2s[w][:min(self.max_len-1, len(self.w2s[w]))], dtype=np.int32) + self.total_words
             # truncated = np.append(truncated, w)
-            z[:truncated.size] = truncated
-            z[-1] = w
+            z[1:truncated.size+1] = truncated
+            z[0] = w
             self.w2s[w] = z
 
         self.w2s_str = {w: " ".join([str(el) for el in segm]) for w, segm in self.w2s.items()}
