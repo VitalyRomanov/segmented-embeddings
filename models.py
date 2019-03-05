@@ -76,10 +76,11 @@ def assemble_graph(model='skipgram',
 
         def attention_layer(input_):
             d_out = tf.nn.dropout(input_, keep_prob=dropout)
-            joined_attention = tf.layers.dense(d_out, attentive_seq_len, name='joined_attention', kernel_regularizer=tf.nn.l2_loss)
+            joined_attention = tf.layers.dense(d_out, attentive_seq_len, name='joined_attention', activation=tf.nn.sigmoid,  kernel_regularizer=tf.nn.l2_loss, bias_regularizer=tf.nn.l2_loss)
+
             attention_mask = tf.reshape(joined_attention, (-1, attentive_seq_len, 1), name='attention_mask')
-            soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
-            return soft_attention
+            # soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
+            return attention_mask
 
         with tf.variable_scope('attention') as att_scope:
             emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
