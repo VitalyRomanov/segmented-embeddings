@@ -24,7 +24,8 @@ def assemble_graph(model='skipgram',
     out_emb = tf.nn.embedding_lookup(out_matr, out_words)
 
     emb_segments_in_attention_mask = None
-    # seq_lens = None
+    seq_lens = None
+    end_of_seq_loss = 0.
 
     if model == 'skipgram':
 
@@ -91,8 +92,10 @@ def assemble_graph(model='skipgram',
             emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
             # emb_segments_in_attention_mask = attention_layer(emb_segments_in_proj_r)
 
-
-        # seq_mask = tf.sequence_mask(seq_lens, maxlen=attentive_seq_len, name="len_mask")
+        seq_lens = tf.placeholder(shape=(None,), dtype=tf.int32)
+        seq_mask = tf.sequence_mask(seq_lens, maxlen=attentive_seq_len, name="len_mask")
+        end_seq_mask = tf.math.logical_not(seq_mask)
+        end_of_seq_loss = tf.reduce_mean(tf.boolean_mask(emb_segments_in_attention_mask, end_seq_mask))
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 
@@ -104,7 +107,7 @@ def assemble_graph(model='skipgram',
     logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product")
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
-    loss = tf.reduce_mean(per_item_loss, axis=0)
+    loss = tf.reduce_mean(per_item_loss, axis=0) + end_of_seq_loss
 
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
@@ -119,5 +122,6 @@ def assemble_graph(model='skipgram',
         'batch_count': counter,
         'final': final,
         'dropout': dropout,
-        'attention_mask': emb_segments_in_attention_mask
+        'attention_mask': emb_segments_in_attention_mask,
+        'seq_lens': seq_lens
     }

@@ -112,6 +112,7 @@ adder_ = terminals['adder']
 lr_ = terminals['learning_rate']
 batch_count_ = terminals['batch_count']
 dropout_ = terminals['dropout']
+lens_ = terminals['seq_lens']
 
 
 saver = tf.train.Saver()
@@ -162,7 +163,10 @@ def save_snapshot(sess, terminals, vocab_size):
 
 def create_batch(model_name, in_batch, out_batch, lbl_batch):
     if model_name != 'skipgram':
-        return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
+        if model_name == 'attentive':
+            return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch)), segmenter.get_lens(in_batch)
+        else:
+            return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
     else:
         return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
 
@@ -229,24 +233,30 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
             if len(in_batch) == batch_size:
 
-                in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
+                batch = create_batch(model_name, in_batch, out_batch, lbl_batch)
 
-                _, batch_count = sess.run([train_, adder_], {
+                if model_name == 'attentive':
+                    in_b, out_b, lbl_b, lens_b = batch
+                else:
+                    in_b, out_b, lbl_b = batch
+
+                feed_dict = {
                     in_words_: in_b,
                     out_words_: out_b,
                     labels_: lbl_b,
                     lr_: learn_rate,
                     dropout_: 0.7
-                })
+                }
+
+                if model_name == 'attentive':
+                    feed_dict[lens_] = lens_b
+
+                _, batch_count = sess.run([train_, adder_], feed_dict)
 
                 if batch_count % save_every == 0:
                     # in_words, out_words, labels = first_batch
-                    loss_val, summary = sess.run([loss_, saveloss_], {
-                        in_words_: in_b,
-                        out_words_: out_b,
-                        labels_: lbl_b,
-                        dropout_: 1.0
-                    })
+                    feed_dict[dropout_] = 1.0
+                    loss_val, summary = sess.run([loss_, saveloss_], feed_dict)
                     print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
                     save_path = saver.save(sess, ckpt_path)
                     summary_writer.add_summary(summary, batch_count)
