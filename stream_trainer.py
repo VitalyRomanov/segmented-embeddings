@@ -61,14 +61,18 @@ def assign_embeddings(sess, terminals, vocab_size):
     final = sess.run(final_, {in_words_: ids_expanded,
                               dropout_: 1.0})
 
-    dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
-    pickle.dump(final, open(dump_path, "wb"))
+    emb_dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
 
     if model_name == 'attentive':
+        sgm = sgm_path.split("/")[0]
+        emb_dump_path = "./embeddings/%s_%s_%d.pkl" % (model_name, sgm, vocab_size)
+        dump_path = "./embeddings/attention_mask_%s_%s_%d.pkl" % (segmenter, model_name, vocab_size)
+
         attention_mask = sess.run(attention_, {in_words_: ids_expanded,
                               dropout_: 1.0})
-        dump_path = "./embeddings/attention_mask_%s_%s_%d.pkl" % (sgm_path.split("/")[0], model_name, vocab_size)
         pickle.dump(attention_mask, open(dump_path, "wb"))
+
+    pickle.dump(final, open(emb_dump_path, "wb"))
 
 
 

@@ -1,13 +1,13 @@
 #!/bin/bash
 
 python stream_reader.py \
-    -d 150 \
+    -d 15 \
     -e 1 \
     -c 200 \
-    -n 20 \
-    -w 5 \
-    -b 2000 \
-    -v 100000 \
+    -n 1 \
+    -w 2 \
+    -b 200 \
+    -v 100 \
     -s 1e-4 \
     -m attentive \
     -l en \
