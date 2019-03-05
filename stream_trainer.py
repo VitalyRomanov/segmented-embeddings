@@ -122,8 +122,16 @@ def parse_model_input(line):
     try:
         a_, p_, l_ = line.split("\t")
     except:
-        print(line)
-        return -1, -1, -1, False
+        try:
+            w = line.split("\t")[0][:4]
+            if w == 'wiki':
+                global wiki_step, learn_rate
+                wiki_step += 1
+                learn_rate = init_learn_rate * (1 - wiki_step / wiki_ceil)
+                print("learning_rate=%.4f" % learn_rate)
+        finally:
+            print(line)
+            return -1, -1, -1, False
 
     a = int(a_)
     p = int(p_)
@@ -159,7 +167,10 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
 
 
 epoch = 0
-learn_rate = 0.01
+init_learn_rate = 0.05
+learn_rate = init_learn_rate
+wiki_step = 0
+wiki_ceil = 6000
 
 
 save_every = 2000 * 50000 // batch_size
@@ -207,8 +218,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                 flush()
             else:
                 raise Exception("Unknown sequence: %s" % line.strip())
-
-
 
         in_, out_, lbl_, valid = parse_model_input(line.strip())
 
