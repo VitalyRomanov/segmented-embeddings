@@ -24,6 +24,7 @@ def assemble_graph(model='skipgram',
     out_emb = tf.nn.embedding_lookup(out_matr, out_words)
 
     emb_segments_in_attention_mask = None
+    # seq_lens = None
 
     if model == 'skipgram':
 
@@ -81,7 +82,7 @@ def assemble_graph(model='skipgram',
 
         def attention_layer(input_):
             d_out = tf.nn.dropout(input_, keep_prob=dropout)
-            joined_attention = tf.layers.dense(d_out, attentive_seq_len, name='joined_attention', activation=tf.sigmoid, kernel_regularizer=tf.nn.l2_loss)
+            joined_attention = tf.layers.dense(d_out, attentive_seq_len, name='joined_attention', activation=tf.nn.relu, kernel_regularizer=tf.nn.l2_loss)
             attention_mask = tf.reshape(joined_attention, (-1, attentive_seq_len, 1), name='attention_mask')
             soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
             return soft_attention
@@ -89,6 +90,9 @@ def assemble_graph(model='skipgram',
         with tf.variable_scope('attention') as att_scope:
             emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
             # emb_segments_in_attention_mask = attention_layer(emb_segments_in_proj_r)
+
+
+        # seq_mask = tf.sequence_mask(seq_lens, maxlen=attentive_seq_len, name="len_mask")
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 

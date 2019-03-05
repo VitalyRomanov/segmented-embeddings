@@ -27,6 +27,10 @@ class WordSegmenter:
 
         self.max_len += 1
 
+        self.w2s_lens = dict()
+        for w in self.w2s:
+            self.w2s_lens[w] = min(self.max_len - 1, len(self.w2s[w])) + 1
+
         self.total_words = len(self.w2s)
         self.padding += self.total_words
         for w in self.w2s:
@@ -39,6 +43,9 @@ class WordSegmenter:
 
         self.w2s_str = {w: " ".join([str(el) for el in segm]) for w, segm in self.w2s.items()}
 
+
+    def get_lens(self, items):
+        return np.array([self.w2s_lens[i] for i in items], dtype=np.int32)
 
     def segment(self, batch, str_type=False):
         if str_type:

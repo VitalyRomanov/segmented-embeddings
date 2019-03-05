@@ -23,7 +23,5 @@ while 1:
     segments = ws.segment([ind]).reshape((-1,))
     sgm = [voc[segments[0]]] + ws.to_segments(segments[1:]).tolist()
     att = attention[ind].reshape((-1,)).tolist()
-    print(len(sgm))
-    print(len(att))
     for p, a in zip(sgm, att):
         print("%s\t%.4f" % (p, a))
