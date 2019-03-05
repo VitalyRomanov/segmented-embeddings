@@ -55,6 +55,7 @@ def assemble_graph(model='skipgram',
 
     elif model == "attentive":
 
+        assert vocab_size is not None
         assert segment_vocab_size is not None
         assert max_word_segments is not None
         assert emb_size is not None
@@ -74,8 +75,15 @@ def assemble_graph(model='skipgram',
         emb_segments_in_r = tf.reshape(emb_segments_in, (-1, attentive_seq_len * emb_size))
 
         def attention_layer(input_):
+            fw = tf.nn.rnn_cell.GRUCell(30)
+            bw = tf.nn.rnn_cell.GRUCell(30)
+            outputs, _ = tf.nn.bidirectional_dynamic_rnn(fw, bw, input_)
+
+            tf.concat(outputs, 2)
+
+        def attention_layer(input_):
             d_out = tf.nn.dropout(input_, keep_prob=dropout)
-            joined_attention = tf.layers.dense(d_out, attentive_seq_len, name='joined_attention')
+            joined_attention = tf.layers.dense(d_out, attentive_seq_len, name='joined_attention', activation=tf.sigmoid, kernel_regularizer=tf.nn.l2_loss)
             attention_mask = tf.reshape(joined_attention, (-1, attentive_seq_len, 1), name='attention_mask')
             soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
             return soft_attention

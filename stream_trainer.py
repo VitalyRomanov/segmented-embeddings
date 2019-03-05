@@ -64,9 +64,9 @@ def assign_embeddings(sess, terminals, vocab_size):
     emb_dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
 
     if model_name == 'attentive':
-        sgm = sgm_path.split("/")[0]
-        emb_dump_path = "./embeddings/%s_%s_%d.pkl" % (model_name, sgm, vocab_size)
-        dump_path = "./embeddings/attention_mask_%s_%s_%d.pkl" % (segmenter, model_name, vocab_size)
+        sgm_p = sgm_path.split("/")[0]
+        emb_dump_path = "./embeddings/%s_%s_%d.pkl" % (model_name, sgm_p, vocab_size)
+        dump_path = "./embeddings/attention_mask_%s_%s_%d.pkl" % (sgm_p, model_name, vocab_size)
 
         attention_mask = sess.run(attention_, {in_words_: ids_expanded,
                               dropout_: 1.0})
