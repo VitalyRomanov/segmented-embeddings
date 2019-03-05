@@ -147,6 +147,9 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
 
 vocab_size = 100000
 epoch = 0
+initial_learn_rate = 0.05
+learn_rate = initial_learn_rate
+
 
 save_every = 2000 * 50000 // batch_size
 
@@ -192,7 +195,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             else:
                 raise Exception("Unknown sequence: %s" % line.strip())
 
-        learn_rate = 0.001 # 0.025 * (1. - epoch / epochs)
+
 
         in_, out_, lbl_, valid = parse_model_input(line.strip())
 
@@ -212,6 +215,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     lr_: learn_rate,
                     dropout_: 0.7
                 })
+
+                learn_rate = initial_learn_rate * (1. - batch_count / 10000000)
 
                 if batch_count % save_every == 0:
                     # in_words, out_words, labels = first_batch
