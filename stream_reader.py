@@ -75,7 +75,7 @@ arg_dict['graph_saving_path'] = graph_saving_path
 arg_dict['ckpt_path'] = ckpt_path
 print(len(arg_dict))
 for key, val in arg_dict.items():
-    print(f"{key}={val}")
+    print("{}={}".format(key, val))
 
 def seld_line(a, p, l):
     print("%d\t%d\t%d" % (a, p, l))

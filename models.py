@@ -24,8 +24,6 @@ def assemble_graph(model='skipgram',
     out_emb = tf.nn.embedding_lookup(out_matr, out_words)
 
     emb_segments_in_attention_mask = None
-    seq_lens = None
-    end_of_seq_loss = 0.
 
     if model == 'skipgram':
 
@@ -64,22 +62,17 @@ def assemble_graph(model='skipgram',
 
         attentive_seq_len = max_word_segments
 
-        pad = tf.zeros(shape=(1, emb_size), name="padding_vector", dtype=tf.float32)
+        # pad = tf.zeros(shape=(1, emb_size), name="padding_vector", dtype=tf.float32)
 
-        segment_in_matr = tf.get_variable("SEGM_IN", shape=(segment_vocab_size - 1, emb_size), dtype=tf.float32)
+        segment_in_matr = tf.get_variable("SEGM_IN", shape=(segment_vocab_size, emb_size), dtype=tf.float32)
 
-        in_embedding_matrix = tf.concat([in_matr, segment_in_matr, pad], axis=0)
+        in_embedding_matrix = tf.concat([in_matr, segment_in_matr], axis=0)
 
         in_words = tf.placeholder(dtype=tf.int32, shape=(None, attentive_seq_len), name="in_words")
 
         emb_segments_in = tf.nn.embedding_lookup(in_embedding_matrix, in_words)
 
         emb_segments_in_r = tf.reshape(emb_segments_in, (-1, attentive_seq_len * emb_size))
-
-        # emb_segments_in_r = tf.reshape(emb_segments_in, (-1, emb_size))
-        # emb_segments_in_r_proj = tf.layers.dense(emb_segments_in_r, 30, activation=tf.nn.sigmoid, name="projection")
-        # emb_segments_in_proj = tf.reshape(emb_segments_in_r_proj, (-1 ,attentive_seq_len, 30))
-        # emb_segments_in_proj_r = tf.reshape(emb_segments_in_proj, (-1, attentive_seq_len * 30))
 
         def attention_layer(input_):
             d_out = tf.nn.dropout(input_, keep_prob=dropout)
@@ -90,12 +83,6 @@ def assemble_graph(model='skipgram',
 
         with tf.variable_scope('attention') as att_scope:
             emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
-            # emb_segments_in_attention_mask = attention_layer(emb_segments_in_proj_r)
-
-        seq_lens = tf.placeholder(shape=(None,), dtype=tf.int32)
-        seq_mask = tf.sequence_mask(seq_lens, maxlen=attentive_seq_len, name="len_mask")
-        end_seq_mask = tf.math.logical_not(seq_mask)
-        end_of_seq_loss = tf.reduce_mean(tf.boolean_mask(emb_segments_in_attention_mask, end_seq_mask))
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 
@@ -107,7 +94,7 @@ def assemble_graph(model='skipgram',
     logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product")
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
-    loss = tf.reduce_mean(per_item_loss, axis=0) + end_of_seq_loss
+    loss = tf.reduce_mean(per_item_loss, axis=0)
 
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
@@ -122,6 +109,5 @@ def assemble_graph(model='skipgram',
         'batch_count': counter,
         'final': final,
         'dropout': dropout,
-        'attention_mask': emb_segments_in_attention_mask,
-        'seq_lens': seq_lens
+        'attention_mask': emb_segments_in_attention_mask
     }

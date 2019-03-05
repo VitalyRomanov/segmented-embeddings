@@ -35,7 +35,7 @@ gpu_mem = args['gpu_mem']
 vocab_size = int(args['vocabulary_size'])
 
 for key,val in args.items():
-    print(f"{key}={val}")
+    print("{}={}".format(key, val))
 
 print()
 
@@ -163,10 +163,7 @@ def save_snapshot(sess, terminals, vocab_size):
 
 def create_batch(model_name, in_batch, out_batch, lbl_batch):
     if model_name != 'skipgram':
-        if model_name == 'attentive':
-            return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch)), segmenter.get_lens(in_batch)
-        else:
-            return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
+        return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
     else:
         return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
 
@@ -233,12 +230,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
             if len(in_batch) == batch_size:
 
-                batch = create_batch(model_name, in_batch, out_batch, lbl_batch)
-
-                if model_name == 'attentive':
-                    in_b, out_b, lbl_b, lens_b = batch
-                else:
-                    in_b, out_b, lbl_b = batch
+                in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
 
                 feed_dict = {
                     in_words_: in_b,
@@ -247,9 +239,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     lr_: learn_rate,
                     dropout_: 0.7
                 }
-
-                if model_name == 'attentive':
-                    feed_dict[lens_] = lens_b
 
                 _, batch_count = sess.run([train_, adder_], feed_dict)
 
