@@ -49,7 +49,7 @@ class WordSegmenter:
     def to_segments(self, batch):
         read = np.vectorize(lambda x: self.id2s[x])
         try:
-            t = read(batch)
+            t = read(batch-self.total_words)
         except:
             print(batch)
             raise Exception()

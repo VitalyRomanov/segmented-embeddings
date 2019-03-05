@@ -126,7 +126,7 @@ def parse_model_input(line):
         try:
             w = line.split("\t")[0][:4]
             if w == 'wiki':
-                global wiki_step, learn_rate
+                global wiki_step, learn_rate, init_learn_rate
                 wiki_step += 1
                 learn_rate = init_learn_rate * (1 - wiki_step / wiki_ceil)
                 print("learning_rate=%.4f" % learn_rate)

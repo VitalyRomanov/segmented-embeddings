@@ -72,12 +72,12 @@ def assemble_graph(model='skipgram',
 
         emb_segments_in = tf.nn.embedding_lookup(in_embedding_matrix, in_words)
 
-        # emb_segments_in_r = tf.reshape(emb_segments_in, (-1, attentive_seq_len * emb_size))
+        emb_segments_in_r = tf.reshape(emb_segments_in, (-1, attentive_seq_len * emb_size))
 
-        emb_segments_in_r = tf.reshape(emb_segments_in, (-1, emb_size))
-        emb_segments_in_r_proj = tf.layers.dense(emb_segments_in_r, 30, activation=tf.nn.sigmoid, name="projection")
-        emb_segments_in_proj = tf.reshape(emb_segments_in_r_proj, (-1 ,attentive_seq_len, 30))
-        emb_segments_in_proj_r = tf.reshape(emb_segments_in_proj, (-1, attentive_seq_len * 30))
+        # emb_segments_in_r = tf.reshape(emb_segments_in, (-1, emb_size))
+        # emb_segments_in_r_proj = tf.layers.dense(emb_segments_in_r, 30, activation=tf.nn.sigmoid, name="projection")
+        # emb_segments_in_proj = tf.reshape(emb_segments_in_r_proj, (-1 ,attentive_seq_len, 30))
+        # emb_segments_in_proj_r = tf.reshape(emb_segments_in_proj, (-1, attentive_seq_len * 30))
 
         def attention_layer(input_):
             d_out = tf.nn.dropout(input_, keep_prob=dropout)
@@ -87,8 +87,8 @@ def assemble_graph(model='skipgram',
             return soft_attention
 
         with tf.variable_scope('attention') as att_scope:
-            # emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
-            emb_segments_in_attention_mask = attention_layer(emb_segments_in_proj_r)
+            emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
+            # emb_segments_in_attention_mask = attention_layer(emb_segments_in_proj_r)
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 
