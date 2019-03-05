@@ -46,6 +46,7 @@ else:
 def assign_embeddings(sess, terminals, vocab_size):
     in_words_ = terminals['in_words']
     final_ = terminals['final']
+    dropout_ = terminals['dropout']
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
     ids = np.array(list(range(vocab_size)))
@@ -54,7 +55,7 @@ def assign_embeddings(sess, terminals, vocab_size):
     else:
         ids_expanded = ids
 
-    final = sess.run(final_, {in_words_: ids_expanded})
+    final = sess.run(final_, {in_words_: ids_expanded, dropout_: 1.0})
 
     dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
     pickle.dump(final, open(dump_path, "wb"))
@@ -114,14 +115,14 @@ epoch = 0
 save_every = 2000 * 50000 // batch_size
 
 
-if gpu_mem == 'None':
-    gpu_options = tf.GPUOptions()
-else:
-    frac = float(gpu_mem)
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=frac)
+# if gpu_mem == 'None':
+#     gpu_options = tf.GPUOptions()
+# else:
+#     frac = float(gpu_mem)
+#     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=frac)
 
-with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-# with tf.Session() as sess:
+# with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 

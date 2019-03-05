@@ -1,10 +1,7 @@
 import tensorflow as tf
 import sys
-from Vocabulary import Vocabulary
-from Reader import Reader
 from WordSegmenter import WordSegmenter
 import pickle
-import argparse
 import numpy as np
 import time
 
@@ -34,12 +31,17 @@ graph_saving_path = args['graph_saving_path']
 ckpt_path = args['ckpt_path']
 restore = int(args['restore'])
 gpu_mem = args['gpu_mem']
+vocab_size = int(args['vocabulary_size'])
 
+for key,val in args.items():
+    print(f"{key}={val}")
+
+print()
 
 if restore:
-    print("Restoring from checkpoint")
+    print("Restoring from checkpoint\n")
 else:
-    print("Training from scratch")
+    print("Training from scratch\n")
 
 
 
@@ -47,6 +49,7 @@ def assign_embeddings(sess, terminals, vocab_size):
     in_words_ = terminals['in_words']
     final_ = terminals['final']
     dropout_ = terminals['dropout']
+    attention_ = terminals['attention_mask']
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
     ids = np.array(list(range(vocab_size)))
@@ -61,8 +64,16 @@ def assign_embeddings(sess, terminals, vocab_size):
     dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
     pickle.dump(final, open(dump_path, "wb"))
 
+    if model_name == 'attentive':
+        attention_mask = sess.run(attention_, {in_words_: ids_expanded,
+                              dropout_: 1.0})
+        dump_path = "./embeddings/attention_mask_%d.pkl" % (model_name, vocab_size)
+        pickle.dump(attention_mask, open(dump_path, "wb"))
 
-print("Starting training", time.asctime( time.localtime(time.time()) ))
+
+
+print("Assembling model", time.asctime( time.localtime(time.time()) ))
+
 
 if model_name != 'skipgram':
     segmenter = WordSegmenter(sgm_path, lang)
@@ -138,21 +149,18 @@ def save_snapshot(sess, terminals, vocab_size):
 
 def create_batch(model_name, in_batch, out_batch, lbl_batch):
     if model_name != 'skipgram':
-        if model_name == "attentive":
-            return sgm(np.array(in_batch))[:,:-1] - segmenter.total_words, np.array(out_batch), np.float32(np.array(lbl_batch))
-        else:
-            return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
+        return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
     else:
         return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
 
-vocab_size = 100000
 epoch = 0
-initial_learn_rate = 0.05
-learn_rate = initial_learn_rate
+learn_rate = 0.01
 
 
 save_every = 2000 * 50000 // batch_size
 
+
+print("Starting training", time.asctime( time.localtime(time.time()) ))
 
 if gpu_mem == 'None':
     gpu_options = tf.GPUOptions()
@@ -215,8 +223,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     lr_: learn_rate,
                     dropout_: 0.7
                 })
-
-                learn_rate = initial_learn_rate * (1. - batch_count / 10000000)
 
                 if batch_count % save_every == 0:
                     # in_words, out_words, labels = first_batch

@@ -12,6 +12,7 @@ parser.add_argument('-c', type=int, default=200, dest='context', help='Number of
 parser.add_argument('-n', type=int, default=5, dest='negative', help='Number of negative samples')
 parser.add_argument('-w', type=int, default=5, dest='window_size', help='Context window size (on one side)')
 parser.add_argument('-b', type=int, default=1000, dest='batch_size', help='Training batch size')
+parser.add_argument('-v', type=int, default=100000, dest='vocabulary_size', help='Size of vocabulary to train')
 parser.add_argument('-m', type=str, default='skipgram', dest='model_name', help='Trained model')
 parser.add_argument('-s', type=float, default=1e-4, dest='subsampling_parameter', help='Subsampling threshold')
 parser.add_argument('-l', type=str, default='en', dest='language', help='Language of wikipedia dump')
@@ -35,15 +36,16 @@ vocabulary_path = args.voc_path
 wiki = args.wiki
 lang = args.language
 sgm_path = args.segmenter
+vocab_size = args.vocabulary_size
+sub_smpl = args.subsampling_parameter
 
 graph_saving_path = "./models/%s" % model_name
 ckpt_path = "%s/model.ckpt" % graph_saving_path
 
-vocab_progressions = [100000]
 
 voc = pickle.load(open(vocabulary_path, "rb"))
 
-voc.set_subsampling_param(1e-4)
+voc.set_subsampling_param(sub_smpl)
 
 reader = Reader(data_path, voc, n_contexts, window_size, k, wiki=wiki, lang=lang)
 
@@ -89,22 +91,22 @@ def seld_line(a, p, l):
     #     # sys.stdout.write("%s\t%s\t%d\n" % (a, p, l))
 
 
-for vocab_size in vocab_progressions:
+# for vocab_size in vocab_progressions:
 
-    print("vocab=%d" % vocab_size)
+print("vocab=%d" % vocab_size)
 
-    for e in range(epochs):
+for e in range(epochs):
 
-        print("epoch=%d" % e)
+    print("epoch=%d" % e)
+    batch = next_batch(from_top_n=vocab_size)
+
+    while batch is not None:
+        for a, p, l in zip(batch[0].tolist(), batch[1].tolist(), batch[2].tolist()):
+            seld_line(a, p, l)
+            # print(voc.id2word[a], voc.id2word[p], l)
+            pass
         batch = next_batch(from_top_n=vocab_size)
+        # print("boom")
+        # sys.exit()
 
-        while batch is not None:
-            for a, p, l in zip(batch[0].tolist(), batch[1].tolist(), batch[2].tolist()):
-                seld_line(a, p, l)
-                # print(voc.id2word[a], voc.id2word[p], l)
-                pass
-            batch = next_batch(from_top_n=vocab_size)
-            # print("boom")
-            # sys.exit()
-
-    epochs += 0
+epochs += 0

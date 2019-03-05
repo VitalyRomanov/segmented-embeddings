@@ -1,6 +1,6 @@
 # polyglot download morph2.en
 from collections import Counter
-from polyglot.text import Text, Word
+from polyglot.text import Word
 import pickle
 import sys
 
@@ -14,7 +14,7 @@ def to_morphemes(word):
     if word[0] == "<":
         ms = [word]
     else:
-        ms = list(Word(word, language="en").morphemes)
+        ms = list(map(str, Word(word, language="en").morphemes))
     return ms
 
 word2id = {}
@@ -60,6 +60,8 @@ for word, id_ in word2id.items():
     ms[0] = "<" + ms[0]
     ms[-1] = ms[-1] + ">"
     word2morph[id_] = [morpheme_dict[m] for m in ms]
+
+del Word
 
 pickle.dump(word2morph, open("en_word2segment.pkl", "wb"))
 pickle.dump(morpheme_dict, open("en_segment2id.pkl", "wb"))

@@ -21,6 +21,8 @@ def assemble_graph(model='skipgram',
     out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
     out_emb = tf.nn.embedding_lookup(out_matr, out_words)
 
+    emb_segments_in_attention_mask = None
+
     if model == 'skipgram':
 
         assert vocab_size is not None
@@ -55,7 +57,7 @@ def assemble_graph(model='skipgram',
         assert max_word_segments is not None
         assert emb_size is not None
 
-        attentive_seq_len = max_word_segments - 1
+        attentive_seq_len = max_word_segments
 
         pad = tf.zeros(shape=(1, emb_size), name="padding_vector", dtype=tf.float32)
 
@@ -103,5 +105,6 @@ def assemble_graph(model='skipgram',
         'learning_rate': learning_rate,
         'batch_count': counter,
         'final': final,
-        'dropout': dropout
+        'dropout': dropout,
+        'attention_mask': emb_segments_in_attention_mask
     }
