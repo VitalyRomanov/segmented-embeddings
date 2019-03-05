@@ -112,7 +112,6 @@ adder_ = terminals['adder']
 lr_ = terminals['learning_rate']
 batch_count_ = terminals['batch_count']
 dropout_ = terminals['dropout']
-lens_ = terminals['seq_lens']
 
 
 saver = tf.train.Saver()
