@@ -18,24 +18,16 @@ n_param = int(sys.stdin.readline())
 args = dict([tuple(sys.stdin.readline().strip().split("=")) for _ in range(n_param)])
 
 n_dims = int(args['dimensionality'])
-epochs = int(args['epochs'])
-n_contexts = int(args['context'])
-k = int(args['negative'])
-window_size = int(args['window_size'])
 model_name = args['model_name']
-data_path = args['data_path']
-vocabulary_path = args['voc_path']
-wiki = bool(args['wiki'])
 lang = args['language']
 sgm_path = args['segmenter']
 full_voc_size = int(args['full_vocabulary_size'])
-batch_size = int(args['batch_size'])
 graph_saving_path = args['graph_saving_path']
 ckpt_path = args['ckpt_path']
-restore = int(args['restore'])
-gpu_mem = args['gpu_mem']
+vocab_size = int(args['vocabulary_size'])
 
 
+restore = 1
 if restore:
     print("Restoring from checkpoint")
 else:
@@ -47,6 +39,7 @@ def assign_embeddings(sess, terminals, vocab_size):
     in_words_ = terminals['in_words']
     final_ = terminals['final']
     dropout_ = terminals['dropout']
+    attention_ = terminals['attention_mask']
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
     ids = np.array(list(range(vocab_size)))
@@ -55,10 +48,18 @@ def assign_embeddings(sess, terminals, vocab_size):
     else:
         ids_expanded = ids
 
-    final = sess.run(final_, {in_words_: ids_expanded, dropout_: 1.0})
+    final = sess.run(final_, {in_words_: ids_expanded,
+                              dropout_: 1.0})
 
     dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
     pickle.dump(final, open(dump_path, "wb"))
+
+    if model_name == 'attentive':
+        attention_mask = sess.run(attention_, {in_words_: ids_expanded,
+                              dropout_: 1.0})
+        dump_path = "./embeddings/attention_mask_%s_%s_%d.pkl" % (sgm_path.split("/")[0], model_name, vocab_size)
+        pickle.dump(attention_mask, open(dump_path, "wb"))
+
 
 
 print("Starting saving", time.asctime( time.localtime(time.time()) ))
@@ -100,7 +101,6 @@ saver = tf.train.Saver()
 saveloss_ = tf.summary.scalar('loss', loss_)
 
 
-
 def save_snapshot(sess, terminals, vocab_size):
     batch_count = sess.run(terminals['batch_count'])
     path = "./models/%s_%d_%d" % (model_name, vocab_size, batch_count)
@@ -109,19 +109,8 @@ def save_snapshot(sess, terminals, vocab_size):
     save_path = saver.save(sess, ckpt_p)
 
 
-vocab_size = 100000
 epoch = 0
 
-save_every = 2000 * 50000 // batch_size
-
-
-# if gpu_mem == 'None':
-#     gpu_options = tf.GPUOptions()
-# else:
-#     frac = float(gpu_mem)
-#     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=frac)
-
-# with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)

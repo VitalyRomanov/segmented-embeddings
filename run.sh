@@ -9,7 +9,7 @@ python stream_reader.py \
     -b 2000 \
     -v 100000 \
     -s 1e-4 \
-    -m skipgram \
+    -m attentive \
     -l en \
     -sgm morpheme_segmentation/en/ \
     -wiki 1 \

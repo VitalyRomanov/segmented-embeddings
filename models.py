@@ -1,4 +1,6 @@
 import tensorflow as tf
+import pickle
+import numpy as np
 
 def assemble_graph(model='skipgram',
                    vocab_size=None,

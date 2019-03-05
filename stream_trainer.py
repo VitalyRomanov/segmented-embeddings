@@ -67,7 +67,7 @@ def assign_embeddings(sess, terminals, vocab_size):
     if model_name == 'attentive':
         attention_mask = sess.run(attention_, {in_words_: ids_expanded,
                               dropout_: 1.0})
-        dump_path = "./embeddings/attention_mask_%d.pkl" % (model_name, vocab_size)
+        dump_path = "./embeddings/attention_mask_%s_%s_%d.pkl" % (sgm_path.split("/")[0], model_name, vocab_size)
         pickle.dump(attention_mask, open(dump_path, "wb"))
 
 
@@ -152,6 +152,7 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
         return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
     else:
         return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
+
 
 epoch = 0
 learn_rate = 0.01
