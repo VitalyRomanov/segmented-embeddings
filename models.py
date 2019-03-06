@@ -63,11 +63,11 @@ def assemble_graph(model='skipgram',
 
         attentive_seq_len = max_word_segments
 
-        # pad = tf.zeros(shape=(1, emb_size), name="padding_vector", dtype=tf.float32)
+        pad = tf.zeros(shape=(1, emb_size), name="padding_vector", dtype=tf.float32)
 
-        segment_in_matr = tf.get_variable("SEGM_IN", shape=(segment_vocab_size, emb_size), dtype=tf.float32)
+        segment_in_matr = tf.get_variable("SEGM_IN", shape=(segment_vocab_size - 1, emb_size), dtype=tf.float32)
 
-        in_embedding_matrix = tf.concat([in_matr, segment_in_matr], axis=0)
+        in_embedding_matrix = tf.concat([in_matr, segment_in_matr, pad], axis=0)
 
         in_words = tf.placeholder(dtype=tf.int32, shape=(None, attentive_seq_len), name="in_words")
 
@@ -92,7 +92,7 @@ def assemble_graph(model='skipgram',
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 
-        extra_loss = tf.square(1.0 - tf.redice_mean(tf.norm(segment_in_matr, axis=1)))
+        # extra_loss = tf.square(1.0 - tf.redice_mean(tf.norm(segment_in_matr, axis=1)))
 
     else:
         raise NotImplementedError("Invalid model name: %s" % model)
