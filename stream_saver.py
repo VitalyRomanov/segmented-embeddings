@@ -21,6 +21,7 @@ n_dims = int(args['dimensionality'])
 model_name = args['model_name']
 lang = args['language']
 sgm_path = args['segmenter']
+sgm_len = int(args['segmenter_len'])
 full_voc_size = int(args['full_vocabulary_size'])
 graph_saving_path = args['graph_saving_path']
 ckpt_path = args['ckpt_path']
@@ -69,7 +70,7 @@ def assign_embeddings(sess, terminals, vocab_size):
 print("Starting saving", time.asctime( time.localtime(time.time()) ))
 
 if model_name != 'skipgram':
-    segmenter = WordSegmenter(sgm_path, lang)
+    segmenter = WordSegmenter(sgm_path, lang, sgm_len)
     sgm = segmenter.segment
 
     segm_voc_size = segmenter.unique_segments
