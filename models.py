@@ -92,7 +92,7 @@ def assemble_graph(model='skipgram',
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 
-        # extra_loss = tf.square(1.0 - tf.redice_mean(tf.norm(segment_in_matr, axis=1)))
+        extra_loss = tf.square(1.0 - tf.redice_mean(tf.norm(segment_in_matr, axis=1)))
 
     else:
         raise NotImplementedError("Invalid model name: %s" % model)
