@@ -1,7 +1,7 @@
 #!/bin/bash
 
 python stream_reader.py \
-    -d 150 \
+    -d 300 \
     -e 1 \
     -c 200 \
     -n 1 \

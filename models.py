@@ -52,7 +52,7 @@ def assemble_graph(model='skipgram',
 
         in_words = tf.placeholder(dtype=tf.int32, shape=(None,max_word_segments), name="in_words")
 
-        in_emb = tf.reduce_mean(tf.nn.embedding_lookup(in_embedding_matrix, in_words), axis=1)
+        in_emb = tf.reduce_sum(tf.nn.embedding_lookup(in_embedding_matrix, in_words), axis=1)
 
     elif model == "attentive":
 
@@ -85,7 +85,7 @@ def assemble_graph(model='skipgram',
 
             attention_mask = tf.reshape(joined_attention, (-1, attentive_seq_len, 1), name='attention_mask')
             soft_attention = tf.nn.softmax(attention_mask, axis=1, name='soft_attention_mask')
-            return soft_attention
+            return attention_mask
 
         with tf.variable_scope('attention') as att_scope:
             emb_segments_in_attention_mask = attention_layer(emb_segments_in_r)
@@ -99,10 +99,21 @@ def assemble_graph(model='skipgram',
 
     final = tf.nn.l2_normalize(in_emb, axis=1)
 
+    # if model == 'fasttext' or model == 'morph':
+    #
+    #     in_unrolled = tf.reshape(in_words, (-1,))
+    #     out_unrolled = tf.tile(labels, (max_word_segments,))
+    #
+    #     in_u_emb = tf.nn.embedding_lookup(in_embedding_matrix, in_unrolled)
+    #     out_u_emb = tf.nn.embedding_lookup(out_matr, out_unrolled)
+    #
+    #     logits = tf.reduce_sum(in_u_emb * out_u_emb, axis=1, name="inner_product")
+
+
     logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product")
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
-    loss = tf.reduce_mean(per_item_loss, axis=0) + extra_loss
+    loss = tf.reduce_sum(per_item_loss, axis=0) + extra_loss
 
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
