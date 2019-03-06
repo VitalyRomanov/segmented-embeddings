@@ -50,7 +50,7 @@ def assemble_graph(model='skipgram',
 
         in_embedding_matrix = tf.concat([in_matr, segment_in_matr, pad], axis=0)
 
-        in_words = tf.placeholder(dtype=tf.int32, shape=(None,max_word_segments), name="in_words")
+        in_words = tf.placeholder(dtype=tf.int32, shape=(None, max_word_segments), name="in_words")
 
         in_emb = tf.reduce_sum(tf.nn.embedding_lookup(in_embedding_matrix, in_words), axis=1)
 
