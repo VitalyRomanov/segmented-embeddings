@@ -24,6 +24,7 @@ def assemble_graph(model='skipgram',
     out_emb = tf.nn.embedding_lookup(out_matr, out_words)
 
     emb_segments_in_attention_mask = None
+    extra_loss = 0.
 
     if model == 'skipgram':
 
@@ -91,6 +92,8 @@ def assemble_graph(model='skipgram',
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 
+        extra_loss = tf.square(1.0 - tf.redice_mean(tf.norm(segment_in_matr, axis=1)))
+
     else:
         raise NotImplementedError("Invalid model name: %s" % model)
 
@@ -99,7 +102,7 @@ def assemble_graph(model='skipgram',
     logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product")
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
-    loss = tf.reduce_mean(per_item_loss, axis=0)
+    loss = tf.reduce_mean(per_item_loss, axis=0) + extra_loss
 
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
