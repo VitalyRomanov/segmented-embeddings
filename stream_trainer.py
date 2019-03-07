@@ -92,18 +92,6 @@ def parse_model_input(line):
     return batch[:, 0], batch[:, 1], batch[:, 2]
 
 
-in_batch = []
-out_batch = []
-lbl_batch = []
-
-
-def flush():
-    global in_batch, out_batch, lbl_batch
-    in_batch = []
-    out_batch = []
-    lbl_batch = []
-
-
 def save_snapshot(sess, terminals, vocab_size):
     batch_count = sess.run(terminals['batch_count'])
     path = "./models/%s_%d_%d" % (model_name, vocab_size, batch_count)
@@ -148,7 +136,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
                 if new_vocab_size != vocab_size:
                     epoch = 0
-                    flush()
 
                     save_snapshot(sess, terminals, vocab_size)
 
@@ -158,7 +145,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
             elif training_stages[0] == 'epoch':
                 epoch = int(training_stages[1])
-                flush()
             else:
                 raise Exception("Unknown sequence: %s" % line.strip())
             print(line.strip())
@@ -168,22 +154,27 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             wiki_step += 1
             learn_rate = init_learn_rate * (1 - wiki_step / wiki_ceil)
             print("%s learning_rate=%.4f" % (line.strip(), learn_rate))
-
-            if line.strip() == "wiki_99":
-                loss_val, summary = sess.run([loss_, saveloss_], feed_dict = {
-                    in_words_: in_b,
-                    out_words_: out_b,
-                    labels_: lbl_b,
-                })
-                print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
-                save_path = saver.save(sess, ckpt_path)
-                summary_writer.add_summary(summary, batch_count)
-
             continue
 
-        if not line.strip(): continue
+        if not line.strip():
+            continue
 
-        in_b, out_b, lbl_b = parse_model_input(line.strip())
+        if len(line.strip()) == 2: ## AA AB AC AD...
+            print(line.strip())
+            loss_val, summary = sess.run([loss_, saveloss_], feed_dict={
+                in_words_: in_b,
+                out_words_: out_b,
+                labels_: lbl_b,
+            })
+            print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
+            save_path = saver.save(sess, ckpt_path)
+            summary_writer.add_summary(summary, batch_count)
+
+        try:
+            in_b, out_b, lbl_b = parse_model_input(line.strip())
+        except:
+            print(line.strip(()))
+            continue
 
         _, batch_count = sess.run([train_, adder_], {
             in_words_: in_b,
