@@ -189,7 +189,7 @@ wiki_step = 0
 wiki_ceil = 6000
 
 
-save_every = 2000 * 50000 // batch_size
+save_every = 2000 * 500 // batch_size
 
 
 print("Starting training", time.asctime( time.localtime(time.time()) ))
