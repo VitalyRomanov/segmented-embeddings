@@ -19,7 +19,7 @@ def assemble_graph(model='skipgram',
     in_matr = tf.get_variable("IN", shape=(vocab_size, emb_size), dtype=tf.float32, initializer=tf.random_normal_initializer)
 
     ## Out matrix is the same across models
-    out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32, initializer=tf.zeros_initializer)
+    out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32, initializer=tf.random_normal_initializer)
     out_bias = tf.get_variable("out_bias", shape=(vocab_size,), dtype=tf.float32, initializer=tf.random_normal_initializer)
     out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
     out_emb = tf.nn.embedding_lookup(out_matr, out_words, name="out_lookup")
@@ -98,7 +98,7 @@ def assemble_graph(model='skipgram',
 
     final = tf.nn.l2_normalize(in_emb, axis=1)
 
-    logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product") + bias_slice
+    logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product") + bias_slice + 1e-18
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
     loss = tf.reduce_sum(per_item_loss, axis=0)
