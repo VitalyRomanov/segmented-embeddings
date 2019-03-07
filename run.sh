@@ -9,7 +9,7 @@ python stream_reader.py \
     -b 200 \
     -v 100 \
     -s 1e-4 \
-    -m attentive \
+    -m fasttext \
     -l en \
     -sgm n_gram_segmentation/en/ \
     -sgmlen 8 \

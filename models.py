@@ -20,11 +20,12 @@ def assemble_graph(model='skipgram',
 
     ## Out matrix is the same across models
     out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32)
+    out_bias = tf.get_variable("out_bias", shape=(vocab_size,), dtype=tf.float32)
     out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
     out_emb = tf.nn.embedding_lookup(out_matr, out_words)
+    bias_slice = tf.gather_nd(out_bias, tf.reshape(out_words, (-1, 1)))
 
     emb_segments_in_attention_mask = None
-    extra_loss = 0.
 
     if model == 'skipgram':
 
@@ -52,7 +53,7 @@ def assemble_graph(model='skipgram',
 
         in_words = tf.placeholder(dtype=tf.int32, shape=(None,max_word_segments), name="in_words")
 
-        in_emb = tf.reduce_mean(tf.nn.embedding_lookup(in_embedding_matrix, in_words), axis=1)
+        in_emb = tf.reduce_sum(tf.nn.embedding_lookup(in_embedding_matrix, in_words), axis=1)
 
     elif model == "attentive":
 
@@ -92,17 +93,15 @@ def assemble_graph(model='skipgram',
 
         in_emb = tf.reduce_sum(emb_segments_in * emb_segments_in_attention_mask, axis=1)
 
-        extra_loss = tf.square(1.0 - tf.reduce_mean(tf.norm(segment_in_matr, axis=1)))
-
     else:
         raise NotImplementedError("Invalid model name: %s" % model)
 
     final = tf.nn.l2_normalize(in_emb, axis=1)
 
-    logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product")
+    logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product") + bias_slice
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
-    loss = tf.reduce_mean(per_item_loss, axis=0) + extra_loss
+    loss = tf.reduce_sum(per_item_loss, axis=0)
 
     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 

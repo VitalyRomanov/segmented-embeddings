@@ -4,6 +4,8 @@ from WordSegmenter import WordSegmenter
 import pickle
 import numpy as np
 import time
+import pickle
+from ast import literal_eval
 
 from models import assemble_graph
 
@@ -121,7 +123,9 @@ saveloss_ = tf.summary.scalar('loss', loss_)
 def parse_model_input(line):
 
     try:
-        a_, p_, l_ = line.split("\t")
+        batch = pickle.loads(literal_eval(line))
+        a, p, l = batch
+        # a_, p_, l_ = line.split("\t")
     except:
         try:
             w = line.split("\t")[0][:4]
@@ -132,11 +136,11 @@ def parse_model_input(line):
                 print("learning_rate=%.4f" % learn_rate)
         finally:
             print(line)
-            return -1, -1, -1, False
+            return [], [], [], False
 
-    a = int(a_)
-    p = int(p_)
-    l = int(l_)
+    # a = int(a_)
+    # p = int(p_)
+    # l = int(l_)
     return a, p, l, True
 
 
@@ -199,7 +203,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
         training_stages = line.strip().split("=")
 
-        if len(training_stages) > 1:
+        if len(training_stages) == 2:
             if training_stages[0] == 'vocab':
 
                 new_vocab_size = int(training_stages[1])
@@ -217,17 +221,15 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             elif training_stages[0] == 'epoch':
                 epoch = int(training_stages[1])
                 flush()
-            else:
-                raise Exception("Unknown sequence: %s" % line.strip())
 
         in_, out_, lbl_, valid = parse_model_input(line.strip())
 
         if valid:
-            in_batch.append(in_)
-            out_batch.append(out_)
-            lbl_batch.append(lbl_)
+            in_batch.extend(in_)
+            out_batch.extend(out_)
+            lbl_batch.extend(lbl_)
 
-            if len(in_batch) == batch_size:
+            if len(in_batch) >= batch_size:
 
                 in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
 
