@@ -121,14 +121,14 @@ wiki_ceil = 6000
 
 print("Starting training", time.asctime( time.localtime(time.time()) ))
 
-# if gpu_mem == 'None':
-#     gpu_options = tf.GPUOptions()
-# else:
-#     frac = float(gpu_mem)
-#     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=frac)
+if gpu_mem == 'None':
+    gpu_options = tf.GPUOptions()
+else:
+    frac = float(gpu_mem)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=frac)
 
-# with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-with tf.Session() as sess:
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+# with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 
@@ -176,7 +176,7 @@ with tf.Session() as sess:
                     labels_: lbl_b,
                 })
                 print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
-                # save_path = saver.save(sess, ckpt_path)
+                save_path = saver.save(sess, ckpt_path)
                 summary_writer.add_summary(summary, batch_count)
 
             continue
@@ -192,6 +192,6 @@ with tf.Session() as sess:
             lr_: learn_rate
         })
 
-    # save_snapshot(sess, terminals, vocab_size)
+    save_snapshot(sess, terminals, vocab_size)
 
 print("Finished trainig", time.asctime( time.localtime(time.time()) ))

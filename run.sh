@@ -1,19 +1,20 @@
 #!/bin/bash
 
 python stream_reader.py \
-    -d 300 \
+    -d 50 \
     -e 1 \
     -c 200 \
-    -n 1 \
+    -n 10 \
     -w 2 \
-    -b 200 \
-    -v 100 \
+    -b 2000 \
+    -v 5000 \
     -s 1e-4 \
-    -m attentive \
+    -m fasttext \
     -l en \
     -sgm n_gram_segmentation/en/ \
-    -sgmlen 8 \
+    -sgmlen 15 \
     -wiki 1 \
     -r 0 \
      "/Volumes/External/data_sink/en_wiki_tiny/" \
-     "vocabularies/en/en_voc_tokenized.pkl" | python stream_trainer.py
+     "vocabularies/en/en_voc_tokenized.pkl" \
+     | python stream_trainer.py
