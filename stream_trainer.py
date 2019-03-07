@@ -183,13 +183,13 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
 
 
 epoch = 0
-init_learn_rate = 1.0#0.025
+init_learn_rate = 0.05
 learn_rate = init_learn_rate
 wiki_step = 0
 wiki_ceil = 6000
 
 
-save_every = 2000 * 500 // batch_size
+save_every = 2000 * 50000 // batch_size
 
 
 print("Starting training", time.asctime( time.localtime(time.time()) ))

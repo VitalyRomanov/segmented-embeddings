@@ -16,11 +16,15 @@ def assemble_graph(model='skipgram',
     dropout = tf.placeholder(1.0, shape=())
 
     # we always have word embedding matrix
-    in_matr = tf.get_variable("IN", shape=(vocab_size, emb_size), dtype=tf.float32, initializer=tf.random_normal_initializer)
+    in_matr = tf.get_variable("IN",
+                              dtype=tf.float32,
+                              initializer=tf.random_uniform([vocab_size, emb_size], -1.0, 1.0))
 
     ## Out matrix is the same across models
-    out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32, initializer=tf.random_normal_initializer)
-    out_bias = tf.get_variable("out_bias", shape=(vocab_size,), dtype=tf.float32, initializer=tf.random_normal_initializer)
+    out_matr = tf.get_variable("OUT",
+                               dtype=tf.float32,
+                               initializer=tf.truncated_normal([vocab_size, emb_size], stddev=1.0 / np.sqrt(emb_size)))
+    out_bias = tf.get_variable("out_bias", dtype=tf.float32, initializer=tf.zeros([vocab_size]))
     out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
     out_emb = tf.nn.embedding_lookup(out_matr, out_words, name="out_lookup")
     bias_slice = tf.gather_nd(out_bias, tf.reshape(out_words, (-1, 1)))
@@ -47,7 +51,9 @@ def assemble_graph(model='skipgram',
 
         pad = tf.zeros(shape=(1,emb_size), name="padding_vector", dtype=tf.float32)
 
-        segment_in_matr = tf.get_variable("SEGM_IN", shape=(segment_vocab_size - 1, emb_size), dtype=tf.float32)
+        segment_in_matr = tf.get_variable("SEGM_IN",
+                                          dtype=tf.float32,
+                                          initializer=tf.random_uniform([segment_vocab_size, emb_size], -1.0, 1.0))
 
         in_embedding_matrix = tf.concat([in_matr, segment_in_matr, pad], axis=0)
 
@@ -104,7 +110,12 @@ def assemble_graph(model='skipgram',
     loss = tf.reduce_sum(per_item_loss, axis=0)
 
     # train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
-    train = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+    # train = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+
+    opt = tf.train.GradientDescentOptimizer(learning_rate)
+    tvars = tf.trainable_variables()
+    grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), 30.)
+    train = opt.apply_gradients(zip(grads, tvars))
 
     return {
         'in_words': in_words,
