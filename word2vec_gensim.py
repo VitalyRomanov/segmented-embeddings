@@ -39,7 +39,7 @@ model = Word2Vec(sentences,
                  compute_loss=True,
                  alpha=0.05,
                  min_alpha=5e-3,
-                 max_final_vocab=100000,
+                 max_final_vocab=50000,
                  sorted_vocab=1)
 
 print("Word2vec training finished, ", time.strftime("%Y-%m-%d %H:%M"))

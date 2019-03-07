@@ -1,9 +1,9 @@
 #!/bin/bash
 
 python stream_reader.py \
-    -d 150 \
+    -d 50 \
     -e 1 \
-    -c 200 \
+    -c 3 \
     -n 1 \
     -w 2 \
     -b 200 \
@@ -16,4 +16,5 @@ python stream_reader.py \
     -wiki 1 \
     -r 0 \
      "/Volumes/External/data_sink/en_wiki_tiny/" \
-     "vocabularies/en/en_voc_tokenized.pkl" | python stream_trainer.py
+     "vocabularies/en/en_voc_tokenized.pkl"
+#     | python stream_trainer.py

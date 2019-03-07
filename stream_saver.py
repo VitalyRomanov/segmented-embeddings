@@ -7,33 +7,34 @@ import pickle
 import argparse
 import numpy as np
 import time
+import os
 
 from models import assemble_graph
 
 
-sys.stdin.readline()
-sys.stdin.readline()
-n_param = int(sys.stdin.readline())
-
-args = dict([tuple(sys.stdin.readline().strip().split("=")) for _ in range(n_param)])
-
-n_dims = int(args['dimensionality'])
-model_name = args['model_name']
-lang = args['language']
-sgm_path = args['segmenter']
-sgm_len = int(args['segmenter_len'])
-full_voc_size = int(args['full_vocabulary_size'])
-graph_saving_path = args['graph_saving_path']
-ckpt_path = args['ckpt_path']
-vocab_size = int(args['vocabulary_size'])
+parser = argparse.ArgumentParser(description='Train word vectors')
+parser.add_argument('-d', type=int, default=150, dest='dimensionality', help='Trained embedding dimensionality')
+parser.add_argument('-v', type=int, default=100000, dest='vocabulary_size', help='Size of vocabulary to train')
+parser.add_argument('-m', type=str, default='skipgram', dest='model_name', help='Trained model')
+parser.add_argument('-l', type=str, default='en', dest='language', help='Language of wikipedia dump')
+parser.add_argument('-sgm', type=str, dest='segmenter', help='Segmenter Path')
+parser.add_argument('-sgmlen', type=int, dest='segmenter_len', help='Maximum length of segmented sequence')
+parser.add_argument('graph_saving_path', type=str, help='Ckpt path')
 
 
-restore = 1
-if restore:
-    print("Restoring from checkpoint")
-else:
-    print("Training from scratch")
+args = parser.parse_args()
 
+
+n_dims = args.dimensionality
+model_name = args.model_name
+lang = args.language
+sgm_path = args.segmenter
+sgm_len = args.segmenter_len
+full_voc_size = 200001#args.full_vocabulary_size
+graph_saving_path = args.graph_saving_path
+vocab_size = args.vocabulary_size
+
+ckpt_path = os.path.join(graph_saving_path, "model.ckpt")
 
 
 def assign_embeddings(sess, terminals, vocab_size):
@@ -44,15 +45,25 @@ def assign_embeddings(sess, terminals, vocab_size):
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
     ids = np.array(list(range(vocab_size)))
-    if model_name != 'skipgram':
+
+    if model_name == 'morph' or model_name == 'fasttext':
         ids_expanded = segmenter.segment(ids)
-    else:
-        ids_expanded = ids
 
-    final = sess.run(final_, {in_words_: ids_expanded,
+        emb_sum_path = "./embeddings/%s_%d_sum.pkl" % (model_name, vocab_size)
+        final_sum = sess.run(final_, {in_words_: ids_expanded, dropout_: 1.0})
+        pickle.dump(final_sum, open(emb_sum_path, "wb"))
+
+        emb_voc_path = "./embeddings/%s_%d_voc.pkl" % (model_name, vocab_size)
+        id_voc = np.zeros_like(ids_expanded)
+        id_voc[:,0] = ids
+        final_voc = sess.run(final_, {in_words_: id_voc, dropout_: 1.0})
+        pickle.dump(final_voc, open(emb_voc_path, "wb"))
+
+    if model_name == 'skipgram':
+        emb_dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
+        final = sess.run(final_, {in_words_: ids_expanded,
                               dropout_: 1.0})
-
-    emb_dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
+        pickle.dump(final, open(emb_dump_path, "wb"))
 
     if model_name == 'attentive':
         sgm_p = sgm_path.split("/")[0]
@@ -62,8 +73,7 @@ def assign_embeddings(sess, terminals, vocab_size):
         attention_mask = sess.run(attention_, {in_words_: ids_expanded,
                               dropout_: 1.0})
         pickle.dump(attention_mask, open(dump_path, "wb"))
-
-    pickle.dump(final, open(emb_dump_path, "wb"))
+        pickle.dump(final, open(emb_dump_path, "wb"))
 
 
 
@@ -90,8 +100,6 @@ else:
                                emb_size=n_dims)
 
 
-first_batch = None
-
 in_words_ = terminals['in_words']
 out_words_ = terminals['out_words']
 labels_ = terminals['labels']
@@ -111,19 +119,17 @@ def save_snapshot(sess, terminals, vocab_size):
     path = "./models/%s_%d_%d" % (model_name, vocab_size, batch_count)
     ckpt_p = "%s/model.ckpt" % path
     assign_embeddings(sess, terminals, vocab_size)
-    save_path = saver.save(sess, ckpt_p)
+    # save_path = saver.save(sess, ckpt_p)
 
 
 epoch = 0
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
-    summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
 
     # Restore from checkpoint
-    if restore:
-        saver.restore(sess, ckpt_path)
-        sess.graph.as_default()
+    saver.restore(sess, ckpt_path)
+    sess.graph.as_default()
 
     save_snapshot(sess, terminals, vocab_size)
 

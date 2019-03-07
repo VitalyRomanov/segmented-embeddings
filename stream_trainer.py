@@ -56,15 +56,25 @@ def assign_embeddings(sess, terminals, vocab_size):
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
     ids = np.array(list(range(vocab_size)))
-    if model_name != 'skipgram':
+
+    if model_name == 'morph' or model_name == 'fasttext':
         ids_expanded = segmenter.segment(ids)
-    else:
-        ids_expanded = ids
 
-    final = sess.run(final_, {in_words_: ids_expanded,
+        emb_sum_path = "./embeddings/%s_%d_sum.pkl" % (model_name, vocab_size)
+        final_sum = sess.run(final_, {in_words_: ids_expanded, dropout_: 1.0})
+        pickle.dump(final_sum, open(emb_sum_path, "wb"))
+
+        emb_voc_path = "./embeddings/%s_%d_voc.pkl" % (model_name, vocab_size)
+        id_voc = np.zeros_like(ids_expanded)
+        id_voc[:,0] = ids
+        final_voc = sess.run(final_, {in_words_: id_voc, dropout_: 1.0})
+        pickle.dump(final_voc, open(emb_voc_path, "wb"))
+
+    if model_name == 'skipgram':
+        emb_dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
+        final = sess.run(final_, {in_words_: ids,
                               dropout_: 1.0})
-
-    emb_dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
+        pickle.dump(final, open(emb_dump_path, "wb"))
 
     if model_name == 'attentive':
         sgm_p = sgm_path.split("/")[0]
@@ -74,8 +84,7 @@ def assign_embeddings(sess, terminals, vocab_size):
         attention_mask = sess.run(attention_, {in_words_: ids_expanded,
                               dropout_: 1.0})
         pickle.dump(attention_mask, open(dump_path, "wb"))
-
-    pickle.dump(final, open(emb_dump_path, "wb"))
+        pickle.dump(final, open(emb_dump_path, "wb"))
 
 
 
@@ -137,11 +146,13 @@ def parse_model_input(line):
         finally:
             print(line)
             return [], [], [], False
+            # return -1, -1, -1, False
 
     # a = int(a_)
     # p = int(p_)
     # l = int(l_)
-    return a, p, l, True
+    return a.tolist(), p.tolist(), l.tolist(), True
+    # return a, p, l, True
 
 
 in_batch = []
@@ -172,7 +183,7 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
 
 
 epoch = 0
-init_learn_rate = 0.05
+init_learn_rate = 0.025
 learn_rate = init_learn_rate
 wiki_step = 0
 wiki_ceil = 6000
@@ -224,6 +235,8 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
         in_, out_, lbl_, valid = parse_model_input(line.strip())
 
+        if learn_rate < 0: break
+
         if valid:
             in_batch.extend(in_)
             out_batch.extend(out_)
@@ -231,6 +244,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
             if len(in_batch) >= batch_size:
 
+                # print(len(in_batch), len(out_batch), len(lbl_batch))
                 in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
 
                 feed_dict = {

@@ -91,7 +91,7 @@ class Reader:
         batch = []
         context_count = 0
 
-        while self.tokens is not None and self.position + self.n_contexts + self.window_size + 1 > len(self.tokens):
+        while self.tokens is not None and self.position + self.n_contexts + 2 * self.window_size + 1 > len(self.tokens):
             self.get_tokens(from_top_n)
 
         if self.tokens is None:
@@ -99,33 +99,58 @@ class Reader:
             return None
 
         tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size]
-        # token shape (self.n_contexts + 2*self.window_size,)
 
         windows = rolling_window(tokens, self.window_size * 2 + 1)
-        # windows shape (self.n_contexts, 2*self.window_size + 1)
+        # print(windows.shape)
 
         neg = self.voc.sample_negative(self.k * self.n_contexts)
-        # neg shape (self.n_contexts * self.k, )
+        # print(neg.shape)
 
-        central_w = (windows[:, self.window_size].reshape(-1,1) * np.ones((1, 2 * self.window_size), dtype=np.int32)).reshape((-1,))
-        # central_w shape (self.n_contexts, 2 * self.window_size)
-        central_neg = (windows[:, self.window_size].reshape(-1, 1) * np.ones((1, self.k), dtype=np.int32)).reshape((-1,))
-        # central_neg shape (self.n_contexts, self.k)
+        context_words = np.delete(windows, self.window_size, axis=1).T.reshape((-1,))
+        # print(context_words.shape)
 
-        context_words = np.concatenate([windows[:, :self.window_size], windows[:, self.window_size + 1:]], axis=1).reshape((-1,))
-
-        central_ = np.concatenate([central_w, central_neg], axis=0)
+        central_ = np.tile(windows[:, self.window_size], (2 * self.window_size + self.k,))
+        # print(central_.shape)
         context_ = np.concatenate([context_words, neg], axis=0)
+        # print(context_.shape)
         labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
+        # print(labels_.shape)
 
-        self.position += self.n_contexts + self.window_size
+        # print(central_.shape, context_.shape, labels_.shape)
 
-        return central_, context_, labels_
+        batch_ = np.hstack([central_[:, None], context_[:, None], labels_[:, None]])
+
+        # tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size + 5]
+        # # token shape (self.n_contexts + 2*self.window_size,)
+        #
+        # windows = rolling_window(tokens, self.window_size * 2 + 1)
+        # # windows shape (self.n_contexts, 2*self.window_size + 1)
+        #
+        # neg = self.voc.sample_negative(self.k * self.n_contexts)
+        # # neg shape (self.n_contexts * self.k, )
+        #
+        # central_w = (windows[:, self.window_size].reshape(-1,1) * np.ones((1, 2 * self.window_size), dtype=np.int32)).reshape((-1,))
+        # # central_w shape (self.n_contexts, 2 * self.window_size)
+        # central_neg = (windows[:, self.window_size].reshape(-1, 1) * np.ones((1, self.k), dtype=np.int32)).reshape((-1,))
+        # # central_neg shape (self.n_contexts, self.k)
+        #
+        # context_words = np.concatenate([windows[:, :self.window_size], windows[:, self.window_size + 1:]], axis=1).reshape((-1,))
+        #
+        # central_ = np.concatenate([central_w, central_neg], axis=0)
+        # context_ = np.concatenate([context_words, neg], axis=0)
+        # labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
+        #
+        self.position += self.n_contexts + 2 * self.window_size
+        #
+        # CC = np.hstack([central_, context_, labels_])
+
+        return batch_[:,0], batch_[:,1], batch_[:,2]
+        # return batch_, context_, labels_
 
         #########################
         while self.tokens is not None and context_count < self.n_contexts:
             # get more tokens if necessary
-            while self.tokens is not None and self.position + self.window_size + 1 > len(self.tokens):
+            while self.tokens is not None and self.position + 2*self.window_size + 1 > len(self.tokens):
                 self.get_tokens(from_top_n)
 
             # re-initialize if at the end of the file

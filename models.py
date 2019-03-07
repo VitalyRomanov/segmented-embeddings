@@ -20,9 +20,9 @@ def assemble_graph(model='skipgram',
 
     ## Out matrix is the same across models
     out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32)
-    out_bias = tf.get_variable("out_bias", shape=(vocab_size,), dtype=tf.float32)
+    out_bias = tf.get_variable("out_bias", shape=(vocab_size,), dtype=tf.float32)#, regularizer=tf.nn.l2_loss)
     out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
-    out_emb = tf.nn.embedding_lookup(out_matr, out_words)
+    out_emb = tf.nn.embedding_lookup(out_matr, out_words, name="out_lookup")
     bias_slice = tf.gather_nd(out_bias, tf.reshape(out_words, (-1, 1)))
 
     emb_segments_in_attention_mask = None
@@ -36,7 +36,7 @@ def assemble_graph(model='skipgram',
 
         in_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="in_words")
 
-        in_emb = tf.nn.embedding_lookup(in_matr, in_words)
+        in_emb = tf.nn.embedding_lookup(in_matr, in_words, name="in_lookup")
 
     elif model == 'fasttext' or model == 'morph':
 
@@ -103,7 +103,8 @@ def assemble_graph(model='skipgram',
 
     loss = tf.reduce_sum(per_item_loss, axis=0)
 
-    train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
+    # train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
+    train = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
     return {
         'in_words': in_words,
