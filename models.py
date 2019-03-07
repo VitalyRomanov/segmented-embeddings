@@ -16,11 +16,11 @@ def assemble_graph(model='skipgram',
     dropout = tf.placeholder(1.0, shape=())
 
     # we always have word embedding matrix
-    in_matr = tf.get_variable("IN", shape=(vocab_size, emb_size), dtype=tf.float32)
+    in_matr = tf.get_variable("IN", shape=(vocab_size, emb_size), dtype=tf.float32, initializer=tf.random_normal_initializer)
 
     ## Out matrix is the same across models
-    out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32)
-    out_bias = tf.get_variable("out_bias", shape=(vocab_size,), dtype=tf.float32)#, regularizer=tf.nn.l2_loss)
+    out_matr = tf.get_variable("OUT", shape=(vocab_size, emb_size), dtype=tf.float32, initializer=tf.zeros)
+    out_bias = tf.get_variable("out_bias", shape=(vocab_size,), dtype=tf.float32)#, initializer=tf.random_normal_initializer)
     out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
     out_emb = tf.nn.embedding_lookup(out_matr, out_words, name="out_lookup")
     bias_slice = tf.gather_nd(out_bias, tf.reshape(out_words, (-1, 1)))
