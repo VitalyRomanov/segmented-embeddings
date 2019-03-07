@@ -35,7 +35,7 @@ class WikiDataLoader:
         if self.files:
             c_file = self.files.pop(0)
             c_path = os.path.join(self.sub_path, c_file)
-            print("\t", c_file)
+            print(c_file)
 
             docs = open(c_path, "r").read().split("</doc>")
 

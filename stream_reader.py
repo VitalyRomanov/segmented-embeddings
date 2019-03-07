@@ -1,10 +1,10 @@
 import sys
 from Vocabulary import Vocabulary
+from WordSegmenter import WordSegmenter
 from Reader import Reader
 import pickle
 import argparse
 
-# :)
 
 parser = argparse.ArgumentParser(description='Train word vectors')
 parser.add_argument('-d', type=int, default=150, dest='dimensionality', help='Trained embedding dimensionality')
@@ -38,6 +38,7 @@ vocabulary_path = args.voc_path
 wiki = args.wiki
 lang = args.language
 sgm_path = args.segmenter
+sgm_len = args.segmenter_len
 vocab_size = args.vocabulary_size
 sub_smpl = args.subsampling_parameter
 
@@ -51,49 +52,35 @@ voc.set_subsampling_param(sub_smpl)
 
 reader = Reader(data_path, voc, n_contexts, window_size, k, wiki=wiki, lang=lang)
 
-# if model_name != 'skipgram':
-#     segmenter = WordSegmenter(sgm_path, lang)
-#     sgm = lambda x: segmenter.segment(x, str_type=True)
-#
-#     def next_batch(from_top_n=None):
-#         pos, neg, lbl = reader.next_batch(from_top_n=from_top_n)
-#         return sgm(pos), sgm(neg), lbl
-#
+if model_name != 'skipgram':
+    segmenter = WordSegmenter(sgm_path, lang, sgm_len)
+    segm_voc_size = segmenter.unique_segments
+    word_segments = segmenter.max_len
+    # sgm = lambda x: segmenter.segment(x)
+    sgm = lambda x: segmenter.segment_classical(x)
 #     restore = segmenter.to_segments
-#
-# else:
-#     def next_batch(from_top_n=None):
-#         return reader.next_batch(from_top_n=from_top_n)
-#
+else:
+    segm_voc_size = -1
+    word_segments = -1
+    sgm = None
 #     restore = lambda x: voc.id2word[x]
 
 def next_batch(from_top_n=None):
-    return reader.next_batch(from_top_n=from_top_n)
+    return reader.next_batch(from_top_n=from_top_n, segmenter=sgm)
 
 arg_dict = vars(args)
 arg_dict['full_vocabulary_size'] = len(voc)
 arg_dict['graph_saving_path'] = graph_saving_path
 arg_dict['ckpt_path'] = ckpt_path
+arg_dict['segmenter_len'] = word_segments # replace old value. segmenter adds one more value for word itself
+arg_dict['segm_voc_size'] = segm_voc_size
 print(len(arg_dict))
 for key, val in arg_dict.items():
     print("{}={}".format(key, val))
 
-def seld_line(a, p, l):
-    print("%d\t%d\t%d" % (a, p, l))
-    # if model_name != 'skipgram':
-    #     # t1 = " ".join(map(str,a))
-    #     # t2 = " ".join(map(str,p))
-    #     # t1 = " ".join([str(el) for el in a])
-    #     # t2 = " ".join([str(el) for el in p])
-    #     print("%s\t%s\t%d" % (a, p, l))
-    #     # sys.stdout.write("%s\t%s\t%d\n" % (a, p, l))
-    #
-    # else:
-    #     print("%d\t%d\t%d" % (a, p, l))
-    #     # sys.stdout.write("%s\t%s\t%d\n" % (a, p, l))
-
-
-# for vocab_size in vocab_progressions:
+def send_batch(batch):
+    message = pickle.dumps(batch, protocol=4)
+    print(message)
 
 print("vocab=%d" % vocab_size)
 
@@ -101,12 +88,17 @@ for e in range(epochs):
 
     print("epoch=%d" % e)
     batch = next_batch(from_top_n=vocab_size)
+    print()
 
     while batch is not None:
-        for a, p, l in zip(batch[0].tolist(), batch[1].tolist(), batch[2].tolist()):
-            seld_line(a, p, l)
-            # print(voc.id2word[a], voc.id2word[p], l)
-            pass
+        # sink = pickle.dumps(batch).decode('latin-1')
+        send_batch(batch)
+        # print(batch)
+        # for a, p, l in zip(batch[0].tolist(), batch[1].tolist(), batch[2].tolist()):
+        #     seld_line(a, p, l)
+        #     # print(voc.id2word[a], voc.id2word[p], l)
+        #     pass
+        # sys.exit()
         batch = next_batch(from_top_n=vocab_size)
         # print("boom")
         # sys.exit()

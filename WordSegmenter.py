@@ -43,6 +43,10 @@ class WordSegmenter:
 
         self.w2s_str = {w: " ".join([str(el) for el in segm]) for w, segm in self.w2s.items()}
 
+        self.w2s_classical = dict()
+        for w in self.w2s:
+            self.w2s_classical[w] = self.w2s[w][:self.w2s_lens[w]]
+
 
     def get_lens(self, items):
         return np.array([self.w2s_lens[i] for i in items], dtype=np.int32)
@@ -52,6 +56,9 @@ class WordSegmenter:
             return np.stack([self.w2s_str[id_] for id_ in batch])
         else:
             return np.stack([self.w2s[id_] for id_ in batch])
+
+    def segment_classical(self, items):
+        return [self.w2s_classical[i] for i in items]
 
     def to_segments(self, batch):
         read = np.vectorize(lambda x: self.id2s[x])
