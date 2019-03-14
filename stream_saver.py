@@ -13,8 +13,8 @@ from models import assemble_graph
 
 
 parser = argparse.ArgumentParser(description='Train word vectors')
-parser.add_argument('-d', type=int, default=150, dest='dimensionality', help='Trained embedding dimensionality')
-parser.add_argument('-v', type=int, default=100000, dest='vocabulary_size', help='Size of vocabulary to train')
+parser.add_argument('-d', type=int, default=300, dest='dimensionality', help='Trained embedding dimensionality')
+parser.add_argument('-v', type=int, default=100001, dest='vocabulary_size', help='Size of vocabulary to train')
 parser.add_argument('-m', type=str, default='skipgram', dest='model_name', help='Trained model')
 parser.add_argument('-l', type=str, default='en', dest='language', help='Language of wikipedia dump')
 parser.add_argument('-sgm', type=str, dest='segmenter', help='Segmenter Path')

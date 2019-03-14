@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument('-sgm', type=str, default="", dest='segmenter', help='Segmenter Path')
     parser.add_argument('-sgmlen', type=int, default=0, dest='segmenter_len', help='Maximum length of segmented sequence')
     parser.add_argument('-wiki', type=bool, default=True, dest='wiki', help='Read from wikipedia dump')
-    parser.add_argument('-r', type=int, default=False, dest='restore', help='Restore from checkpoint')
+    parser.add_argument('-r', type=int, default=0, dest='restore', help='Restore from checkpoint')
     parser.add_argument('-gm', type=float, default=0.0, dest='gpu_mem', help='Fraction of GPU memory to use')
     parser.add_argument('-lr', type=float, default=0.001, dest='learning_rate', help='Initial learning rate')
     parser.add_argument('data_path', type=str, help='Path to training data. Can be plain file or wikipedia dump. Set flag \'--wiki\' if using wiki dump')
