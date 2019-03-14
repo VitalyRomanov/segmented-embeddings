@@ -9,12 +9,12 @@ python stream_reader.py \
     -b 2000 \
     -v 10000 \
     -s 1e-4 \
-    -m fasttext \
+    -m skipgram \
     -l en \
     -sgm n_gram_segmentation/en/ \
     -sgmlen 8 \
     -wiki 1 \
     -r 0 \
-     "/Volumes/External/data_sink/en_wiki_tiny/" \
+     "/Volumes/External/datasets/Language/Corpus/en/en_wiki_tiny/" \
      "vocabularies/en/en_voc_tokenized.pkl" \
      | python stream_trainer.py

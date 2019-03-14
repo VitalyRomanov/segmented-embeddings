@@ -16,14 +16,14 @@ def assemble_graph(model='skipgram',
     dropout = tf.placeholder(1.0, shape=())
 
     # we always have word embedding matrix
-    in_matr = tf.get_variable("IN",
-                              dtype=tf.float32,
-                              initializer=tf.random_uniform([vocab_size, emb_size], -1.0, 1.0))
+    in_matr = tf.get_variable("IN", shape=[vocab_size, emb_size],
+                              dtype=tf.float32) #,
+                              #initializer=tf.random_uniform([vocab_size, emb_size], -1.0, 1.0))
 
     ## Out matrix is the same across models
-    out_matr = tf.get_variable("OUT",
-                               dtype=tf.float32,
-                               initializer=tf.truncated_normal([vocab_size, emb_size], stddev=1.0 / np.sqrt(emb_size)))
+    out_matr = tf.get_variable("OUT", shape=[vocab_size, emb_size],
+                               dtype=tf.float32) #,
+                               #initializer=tf.truncated_normal([vocab_size, emb_size], stddev=1.0 / np.sqrt(emb_size)))
     out_bias = tf.get_variable("out_bias", dtype=tf.float32, initializer=tf.zeros([vocab_size]))
     out_words = tf.placeholder(dtype=tf.int32, shape=(None,), name="out_words")
     out_emb = tf.nn.embedding_lookup(out_matr, out_words, name="out_lookup")
@@ -104,18 +104,30 @@ def assemble_graph(model='skipgram',
 
     final = tf.nn.l2_normalize(in_emb, axis=1)
 
-    logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product") + bias_slice + 1e-18
+    #logits = tf.layers.dense(in_emb, 50001)
+    #loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=tf.one_hot(out_words, 50001)))
+    logits = tf.reduce_sum(in_emb * out_emb, axis=1, name="inner_product") + bias_slice
     per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
-    loss = tf.reduce_sum(per_item_loss, axis=0)
+    loss = tf.reduce_mean(per_item_loss, axis=0)
+    #loss = tf.reduce_mean(
+    #    tf.nn.nce_loss(
+    #        weights=out_matr,
+    #        biases=out_bias,
+    #        labels=tf.reshape(out_words,(-1,1)),
+    #        inputs=in_emb,
+    #        num_sampled=20,
+    #        num_classes=50001))
 
-    # train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
-    # train = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+    train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
+    #train = tf.train.AdagradOptimizer(learning_rate).minimize(loss)
+    #train = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
-    opt = tf.train.GradientDescentOptimizer(learning_rate)
-    tvars = tf.trainable_variables()
-    grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), 30.)
-    train = opt.apply_gradients(zip(grads, tvars))
+    #opt = tf.train.GradientDescentOptimizer(learning_rate)
+    #opt = tf.contrib.opt.LazyAdamOptimizer(learning_rate)
+    #tvars = tf.trainable_variables()
+    #grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), .1)
+    #train = opt.apply_gradients(zip(grads, tvars))
 
     return {
         'in_words': in_words,

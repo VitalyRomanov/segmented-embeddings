@@ -183,10 +183,10 @@ def create_batch(model_name, in_batch, out_batch, lbl_batch):
 
 
 epoch = 0
-init_learn_rate = 0.05
+init_learn_rate = 0.001
 learn_rate = init_learn_rate
 wiki_step = 0
-wiki_ceil = 6000
+wiki_ceil = 6600
 
 
 save_every = 2000 * 50000 // batch_size
@@ -262,7 +262,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     feed_dict[dropout_] = 1.0
                     loss_val, summary = sess.run([loss_, saveloss_], feed_dict)
                     print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
-                    save_path = saver.save(sess, ckpt_path)
+                    # save_path = saver.save(sess, ckpt_path)
                     summary_writer.add_summary(summary, batch_count)
 
                 flush()

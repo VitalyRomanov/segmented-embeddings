@@ -1,6 +1,8 @@
 from collections import Counter
+from scipy.stats import reciprocal
 import numpy as np
 import pickle
+
 
 class Vocabulary:
     """
@@ -18,9 +20,9 @@ class Vocabulary:
 
     # arrays to keep probabilities for negative sampling and subsampling
     unigram_weights = None
-    noise_weight = None # unigram to power 3/4
-    discard_prob = None # discard probability according to word2vec papet
-    subsampling_threshold = 1e-3 # used for calculating discard probability
+    noise_weight = None  # unigram to power 3/4
+    discard_prob = None  # discard probability according to word2vec papet
+    subsampling_threshold = 1e-3  # used for calculating discard probability
 
     # handle OOV tokens
     unk_id = -1
@@ -31,7 +33,7 @@ class Vocabulary:
     def __init__(self, subsampling_threshold=1e-5):
         # initialize indexes
         self.word2id = {}
-        self.word_count = Counter() # used temporary to simplify the process of counting
+        self.word_count = Counter()  # used temporary to simplify the process of counting
         self.id_count = Counter()
         self.id2word = {}
 
@@ -43,7 +45,7 @@ class Vocabulary:
         self.subsampling_threshold = subsampling_threshold
 
         # flag to update weh nnew words are added
-        self.to_update=True # set when need to recaclulate indexes
+        self.to_update = True  # set when need to recaclulate indexes
 
     def _update(self):
         """
@@ -52,16 +54,16 @@ class Vocabulary:
         """
 
         if self.to_update:
-
             words, word_ids = zip(*self.word2id.items())
             self.id2word = dict(zip(word_ids, words))
 
             counts = np.array([self.id_count[id_] for id_ in sorted(self.id_count.keys())])
             self.unigram_weights = counts / sum(counts)
-            noise_weight = self.unigram_weights**(3/4)
+            noise_weight = self.unigram_weights ** (3 / 4)
+            # noise_weight = list(map(lambda x: reciprocal.pdf(x, 1, len(self)), range(1, len(self)+1)))
             self.noise_weight = noise_weight / sum(noise_weight)
 
-            self.discard_prob = 1 - np.sqrt(self.subsampling_threshold/self.unigram_weights)
+            self.discard_prob = 1 - np.sqrt(self.subsampling_threshold / self.unigram_weights)
 
             self.negative_buffer = np.array([])
             self.to_update = False
@@ -82,11 +84,11 @@ class Vocabulary:
 
         # calling np.random is slow. bufferize 100000 random samples and get slices every time the method is called
         if self.uniform_buffer_position + k > self.uniform_buffer.size:
-            self.uniform_buffer = np.random.rand(max(1000000, k*10))
+            self.uniform_buffer = np.random.rand(max(1000000, k * 10))
             self.uniform_buffer_position = 0
 
-        to_keep = np.greater(self.uniform_buffer[self.uniform_buffer_position : self.uniform_buffer_position + k],
-            self.discard_prob[token_ids])
+        to_keep = np.greater(self.uniform_buffer[self.uniform_buffer_position: self.uniform_buffer_position + k],
+                             self.discard_prob[token_ids])
 
         self.uniform_buffer_position += k
 
@@ -107,6 +109,7 @@ class Vocabulary:
             ids[ids >= select_top] = self.unk_id
 
         ids[ids == -1] = self.unk_id
+        ids = ids[ids != self.unk_id]
 
         if subsample:
             ids = self.subsample(ids)
@@ -135,7 +138,7 @@ class Vocabulary:
             else:
                 self.word_count[t] = 1
 
-        self.to_update=True
+        self.to_update = True
 
     def prune(self, top_n):
         """
@@ -159,7 +162,6 @@ class Vocabulary:
         self.word2id = word2id
         self.id_count = id_count
         self.unk_id = word2id['<unk>']
-
 
         self._update()
 
@@ -228,7 +230,7 @@ class Vocabulary:
             self.negative_buffer = np.random.choice(np.array(list(self.id_count.keys())), 10000000, p=self.noise_weight)
             self.negative_buffer_position = 0
 
-        sample = self.negative_buffer[self.negative_buffer_position : self.negative_buffer_position + k]
+        sample = self.negative_buffer[self.negative_buffer_position: self.negative_buffer_position + k]
         self.negative_buffer_position += k
 
         return sample
@@ -271,7 +273,7 @@ if __name__ == "__main__":
 
                 if len(tokens) > 0:
                     new_tokens = voc.get_ids(tokens, select_top=1000)
-                    
+
                     for token_id in new_tokens:
                         writer.write("{} ".format(voc.get_word(token_id)))
                     writer.write("\n")
@@ -280,8 +282,6 @@ if __name__ == "__main__":
                 counter += 1
                 if counter % 10000 == 0:
                     print(counter)
-            
+
             # print("Total {} tokens, unique {}".format(new_voc.total_tokens(), len(new_voc)))
             # new_voc.save("voc.pkl")
-
-

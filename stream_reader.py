@@ -45,7 +45,7 @@ ckpt_path = "%s/model.ckpt" % graph_saving_path
 
 
 voc = pickle.load(open(vocabulary_path, "rb"))
-
+voc.prune(vocab_size)
 voc.set_subsampling_param(sub_smpl)
 
 reader = Reader(data_path, voc, n_contexts, window_size, k, wiki=wiki, lang=lang)

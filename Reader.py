@@ -1,10 +1,12 @@
 import numpy as np
 from Tokenizer import Tokenizer
 
+
 def rolling_window(a, window):
     shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
     strides = a.strides + (a.strides[-1],)
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
 
 class Reader:
     """
@@ -13,6 +15,7 @@ class Reader:
 
     takes a plain text file as input
     """
+
     def __init__(self, path, vocabulary, n_contexts, window_size, k, wiki=False, lang='en'):
         """
 
@@ -24,7 +27,7 @@ class Reader:
         """
         self.wiki = wiki
         if wiki:
-            
+
             if lang == 'en':
                 from WikiLoaderv2 import WikiDataLoader
             elif lang == 'ru':
@@ -64,11 +67,11 @@ class Reader:
             if self.reader is not None:
                 self.reader.close()
             self.reader = open(self.path, "r")
-        
+
         # read initial set of tokens
         self.tokens = self.voc.get_ids(
             self.tokenizer(self.read_next().strip(), lower=True, hyphen=False)
-            )
+        )
 
     def get_tokens(self, from_top_n):
         nl = self.read_next()
@@ -90,36 +93,40 @@ class Reader:
 
         batch = []
         context_count = 0
+        win_backup = self.window_size
 
-        while self.tokens is not None and self.position + self.n_contexts + 2 * self.window_size + 1 > len(self.tokens):
-            self.get_tokens(from_top_n)
+        ##self.window_size -= np.random.randint(self.window_size - 1)
 
-        if self.tokens is None:
-            self.init()
-            return None
+        # while self.tokens is not None and self.position + self.n_contexts + 2 * self.window_size + 1 > len(self.tokens):
+        #    self.get_tokens(from_top_n)
 
-        tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size]
+        # if self.tokens is None:
+        #    self.init()
+        #    return None
 
-        windows = rolling_window(tokens, self.window_size * 2 + 1)
-        # print(windows.shape)
+        # tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size]
 
-        neg = self.voc.sample_negative(self.k * self.n_contexts)
-        # print(neg.shape)
+        # windows = rolling_window(tokens, self.window_size * 2 + 1)
+        ## print(windows.shape)
 
-        context_words = np.delete(windows, self.window_size, axis=1).T.reshape((-1,))
-        # print(context_words.shape)
+        # neg = self.voc.sample_negative(self.k * self.n_contexts)
+        ## print(neg.shape)
 
-        central_ = np.tile(windows[:, self.window_size], (2 * self.window_size + self.k,))
-        # print(central_.shape)
-        context_ = np.concatenate([context_words, neg], axis=0)
-        # print(context_.shape)
-        labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
-        # print(labels_.shape)
+        # context_words = np.delete(windows, self.window_size, axis=1).T.reshape((-1,))
+        ## print(context_words.shape)
 
-        # print(central_.shape, context_.shape, labels_.shape)
+        # central_ = np.tile(windows[:, self.window_size], (2 * self.window_size + self.k,))
+        ## print(central_.shape)
+        # context_ = np.concatenate([context_words, neg], axis=0)
+        ## print(context_.shape)
+        # labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
+        ## print(labels_.shape)
 
-        batch_ = np.hstack([central_[:, None], context_[:, None], labels_[:, None]])
+        ## print(central_.shape, context_.shape, labels_.shape)
 
+        # batch_ = np.hstack([central_[:, None], context_[:, None], labels_[:, None]])
+
+        ###### Old Long Version
         # tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size + 5]
         # # token shape (self.n_contexts + 2*self.window_size,)
         #
@@ -139,18 +146,19 @@ class Reader:
         # central_ = np.concatenate([central_w, central_neg], axis=0)
         # context_ = np.concatenate([context_words, neg], axis=0)
         # labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
-        #
-        self.position += self.n_contexts + 2 * self.window_size
-        #
+        ###
+        # self.position += self.n_contexts + 2 * self.window_size
+        ###
         # CC = np.hstack([central_, context_, labels_])
-
-        return batch_[:,0], batch_[:,1], batch_[:,2]
-        # return batch_, context_, labels_
+        ###
+        # self.window_size = win_backup
+        # return batch_[:,0], batch_[:,1], batch_[:,2]
+        ### return batch_, context_, labels_
 
         #########################
         while self.tokens is not None and context_count < self.n_contexts:
             # get more tokens if necessary
-            while self.tokens is not None and self.position + 2*self.window_size + 1 > len(self.tokens):
+            while self.tokens is not None and self.position + 2 * self.window_size + 1 > len(self.tokens):
                 self.get_tokens(from_top_n)
 
             # re-initialize if at the end of the file
@@ -159,7 +167,6 @@ class Reader:
                 return None
 
             c_token_id = self.tokens[self.position]
-
 
             # generate positive samples
             for i in range(-self.window_size, self.window_size + 1, 1):
@@ -182,4 +189,4 @@ class Reader:
             self.position += 1
 
         bb = np.array(batch)
-        return bb[:,0], bb[:,1], bb[:,2]
+        return bb[:, 0], bb[:, 1], bb[:, 2]
