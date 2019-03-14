@@ -1,7 +1,6 @@
 import numpy as np
 from Tokenizer import Tokenizer
 
-
 def rolling_window(a, window):
     shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
     strides = a.strides + (a.strides[-1],)
@@ -91,42 +90,41 @@ class Reader:
         :return: batches for (context_word, second_word, label)
         """
 
-        batch = []
-        context_count = 0
-        win_backup = self.window_size
+        while self.tokens is not None and self.position + self.n_contexts + 2 * self.window_size + 1 > len(self.tokens):
+           self.get_tokens(from_top_n)
 
-        ##self.window_size -= np.random.randint(self.window_size - 1)
+        if self.tokens is None:
+           self.init()
+           return None
 
-        # while self.tokens is not None and self.position + self.n_contexts + 2 * self.window_size + 1 > len(self.tokens):
-        #    self.get_tokens(from_top_n)
+        w_span = 2 * self.window_size
+        w_s = self.window_size
+        n_c = self.n_contexts
+        k = self.k
 
-        # if self.tokens is None:
-        #    self.init()
-        #    return None
+        # w_s -= np.random.randint(self.window_size - 1)
 
-        # tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size]
+        tokens = self.tokens[self.position: self.position + n_c + w_span]
+        self.position += n_c + w_span
 
-        # windows = rolling_window(tokens, self.window_size * 2 + 1)
-        ## print(windows.shape)
+        windows = rolling_window(tokens, w_span + 1)
 
-        # neg = self.voc.sample_negative(self.k * self.n_contexts)
-        ## print(neg.shape)
+        central_w = np.tile(windows[:, w_s], (1, w_span)).reshape((-1,))
+        central_neg = np.tile(windows[:, w_s], (1, k)).reshape((-1,))
+        central_ = np.concatenate([central_w, central_neg], axis=0)
 
-        # context_words = np.delete(windows, self.window_size, axis=1).T.reshape((-1,))
-        ## print(context_words.shape)
+        context_w = np.delete(windows, w_s, axis=1).reshape((-1,))
+        context_neg = self.voc.sample_negative(k * n_c)
+        context_ = np.concatenate([context_w, context_neg], axis=0)
 
-        # central_ = np.tile(windows[:, self.window_size], (2 * self.window_size + self.k,))
-        ## print(central_.shape)
-        # context_ = np.concatenate([context_words, neg], axis=0)
-        ## print(context_.shape)
-        # labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
-        ## print(labels_.shape)
+        labels_ = np.concatenate([np.ones_like(context_w), np.zeros_like(context_neg)], axis=0)
 
-        ## print(central_.shape, context_.shape, labels_.shape)
+        batch_ = np.hstack([central_[:, None], context_[:, None], labels_[:, None]])
 
-        # batch_ = np.hstack([central_[:, None], context_[:, None], labels_[:, None]])
+        return batch_
+        # return batch_[:, 0], batch_[:, 1], batch_[:, 2]
 
-        ###### Old Long Version
+        # ##### Old Long Version
         # tokens = self.tokens[self.position: self.position + self.n_contexts + 2*self.window_size + 5]
         # # token shape (self.n_contexts + 2*self.window_size,)
         #
@@ -146,16 +144,14 @@ class Reader:
         # central_ = np.concatenate([central_w, central_neg], axis=0)
         # context_ = np.concatenate([context_words, neg], axis=0)
         # labels_ = np.concatenate([np.ones_like(context_words), np.zeros_like(neg)], axis=0)
-        ###
-        # self.position += self.n_contexts + 2 * self.window_size
-        ###
-        # CC = np.hstack([central_, context_, labels_])
-        ###
-        # self.window_size = win_backup
-        # return batch_[:,0], batch_[:,1], batch_[:,2]
-        ### return batch_, context_, labels_
+        # return batch_, context_, labels_
+        ##
 
         #########################
+
+        batch = []
+        context_count = 0
+
         while self.tokens is not None and context_count < self.n_contexts:
             # get more tokens if necessary
             while self.tokens is not None and self.position + 2 * self.window_size + 1 > len(self.tokens):

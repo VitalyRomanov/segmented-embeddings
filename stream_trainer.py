@@ -1,272 +1,185 @@
 import tensorflow as tf
 import sys
-from WordSegmenter import WordSegmenter
-import pickle
+
 import numpy as np
 import time
 import pickle
 from ast import literal_eval
+from aux import format_args, get_model, save_snapshot
 
-from models import assemble_graph
 
 
 sys.stdin.readline()
 sys.stdin.readline()
 n_param = int(sys.stdin.readline())
-
 args = dict([tuple(sys.stdin.readline().strip().split("=")) for _ in range(n_param)])
+args = format_args(args)
 
-n_dims = int(args['dimensionality'])
-epochs = int(args['epochs'])
-n_contexts = int(args['context'])
-k = int(args['negative'])
-window_size = int(args['window_size'])
-model_name = args['model_name']
-data_path = args['data_path']
-vocabulary_path = args['voc_path']
-wiki = bool(args['wiki'])
-lang = args['language']
-sgm_path = args['segmenter']
-sgm_len = int(args['segmenter_len'])
-full_voc_size = int(args['full_vocabulary_size'])
-batch_size = int(args['batch_size'])
-graph_saving_path = args['graph_saving_path']
-ckpt_path = args['ckpt_path']
-restore = int(args['restore'])
-gpu_mem = args['gpu_mem']
-vocab_size = int(args['vocabulary_size'])
 
 for key,val in args.items():
     print("{}={}".format(key, val))
 
-print()
 
-if restore:
+if args['restore']:
     print("Restoring from checkpoint\n")
 else:
     print("Training from scratch\n")
 
 
-
-def assign_embeddings(sess, terminals, vocab_size):
-    in_words_ = terminals['in_words']
-    final_ = terminals['final']
-    dropout_ = terminals['dropout']
-    attention_ = terminals['attention_mask']
-
-    print("\t\tDumpung vocabulary of size %d" % vocab_size)
-    ids = np.array(list(range(vocab_size)))
-
-    if model_name == 'morph' or model_name == 'fasttext':
-        ids_expanded = segmenter.segment(ids)
-
-        emb_sum_path = "./embeddings/%s_%d_sum.pkl" % (model_name, vocab_size)
-        final_sum = sess.run(final_, {in_words_: ids_expanded, dropout_: 1.0})
-        pickle.dump(final_sum, open(emb_sum_path, "wb"))
-
-        emb_voc_path = "./embeddings/%s_%d_voc.pkl" % (model_name, vocab_size)
-        id_voc = np.zeros_like(ids_expanded)
-        id_voc[:,0] = ids
-        final_voc = sess.run(final_, {in_words_: id_voc, dropout_: 1.0})
-        pickle.dump(final_voc, open(emb_voc_path, "wb"))
-
-    if model_name == 'skipgram':
-        emb_dump_path = "./embeddings/%s_%d.pkl" % (model_name, vocab_size)
-        final = sess.run(final_, {in_words_: ids,
-                              dropout_: 1.0})
-        pickle.dump(final, open(emb_dump_path, "wb"))
-
-    if model_name == 'attentive':
-        sgm_p = sgm_path.split("/")[0]
-        emb_dump_path = "./embeddings/%s_%s_%d.pkl" % (model_name, sgm_p, vocab_size)
-        dump_path = "./embeddings/attention_mask_%s_%s_%d.pkl" % (sgm_p, model_name, vocab_size)
-
-        attention_mask = sess.run(attention_, {in_words_: ids_expanded,
-                              dropout_: 1.0})
-        pickle.dump(attention_mask, open(dump_path, "wb"))
-        pickle.dump(final, open(emb_dump_path, "wb"))
-
-
-
 print("Assembling model", time.asctime( time.localtime(time.time()) ))
 
-
-if model_name != 'skipgram':
-    segmenter = WordSegmenter(sgm_path, lang, sgm_len)
-    sgm = segmenter.segment
-
-    segm_voc_size = segmenter.unique_segments
-    word_segments = segmenter.max_len
-
-    print("Max Word Len is %d segments" % word_segments)
-
-    terminals = assemble_graph(model=model_name,
-                               vocab_size=full_voc_size,
-                               segment_vocab_size=segm_voc_size,
-                               max_word_segments=word_segments,
-                               emb_size=n_dims)
-else:
-
-    terminals = assemble_graph(model=model_name,
-                               vocab_size=full_voc_size,
-                               emb_size=n_dims)
-
-
-first_batch = None
-
-in_words_ = terminals['in_words']
-out_words_ = terminals['out_words']
-labels_ = terminals['labels']
-train_ = terminals['train']
-loss_ = terminals['loss']
-adder_ = terminals['adder']
-lr_ = terminals['learning_rate']
-batch_count_ = terminals['batch_count']
-dropout_ = terminals['dropout']
-
-
-saver = tf.train.Saver()
-saveloss_ = tf.summary.scalar('loss', loss_)
+model = get_model(args)
 
 
 def parse_model_input(line):
 
     try:
         batch = pickle.loads(literal_eval(line))
-        a, p, l = batch
-        # a_, p_, l_ = line.split("\t")
     except:
+        global wiki_step, learn_rate, init_learn_rate, processed_tokens
+
         try:
             w = line.split("\t")[0][:4]
             if w == 'wiki':
-                global wiki_step, learn_rate, init_learn_rate
                 wiki_step += 1
                 learn_rate = init_learn_rate * (1 - wiki_step / wiki_ceil)
-                print("learning_rate=%.4f" % learn_rate)
         finally:
-            print(line)
-            return [], [], [], False
-            # return -1, -1, -1, False
+            print("%s learning_rate=%.4f processed_tokens=%d" % (line, learn_rate, processed_tokens))
+            return None
 
-    # a = int(a_)
-    # p = int(p_)
-    # l = int(l_)
-    return a.tolist(), p.tolist(), l.tolist(), True
-    # return a, p, l, True
-
-
-in_batch = []
-out_batch = []
-lbl_batch = []
+    return batch
 
 
 def flush():
-    global in_batch, out_batch, lbl_batch
-    in_batch = []
-    out_batch = []
-    lbl_batch = []
+    global r_batches, batch_size
+    r_batches = []
+    batch_size = 0
 
 
-def save_snapshot(sess, terminals, vocab_size):
-    batch_count = sess.run(terminals['batch_count'])
-    path = "./models/%s_%d_%d" % (model_name, vocab_size, batch_count)
-    ckpt_p = "%s/model.ckpt" % path
-    assign_embeddings(sess, terminals, vocab_size)
-    save_path = saver.save(sess, ckpt_p)
-
-
-def create_batch(model_name, in_batch, out_batch, lbl_batch):
-    if model_name != 'skipgram':
-        return sgm(np.array(in_batch)), np.array(out_batch), np.float32(np.array(lbl_batch))
-    else:
-        return np.array(in_batch), np.array(out_batch), np.float32(np.array(lbl_batch))
+# def create_batch(model_name, r_batches):
+#     batch = np.vstack(r_batches)
+#
+#     if model_name != 'skipgram':
+#         return sgm(batch[:, 0]), batch[:, 1], np.float32(batch[:, 2])
+#     else:
+#         return batch[:, 0], batch[:, 1], np.float32(batch[:, 2])
 
 
 epoch = 0
-init_learn_rate = 0.001
+init_learn_rate = args['learning_rate']
 learn_rate = init_learn_rate
 wiki_step = 0
 wiki_ceil = 6600
 
 
-save_every = 2000 * 50000 // batch_size
-
+save_every = 1000000
+processed_tokens = 0
+batch_size = 0
+r_batches = []
 
 print("Starting training", time.asctime( time.localtime(time.time()) ))
 
-if gpu_mem == 'None':
-    gpu_options = tf.GPUOptions()
-else:
-    frac = float(gpu_mem)
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=frac)
+if args['restore']:
+    model.restore_graph()
 
-with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-# with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    summary_writer = tf.summary.FileWriter(graph_saving_path, graph=sess.graph)
+for line in iter(sys.stdin.readline, ""):
 
-    # Restore from checkpoint
-    if restore:
-        saver.restore(sess, ckpt_path)
-        sess.graph.as_default()
+    batch = parse_model_input(line.strip())
 
-    for line in iter(sys.stdin.readline, ""):
+    if learn_rate < 0:
+        print("Learning rate is suddenly negative")
+        model.save_snapshot()
+        break
 
-        training_stages = line.strip().split("=")
+    if batch is not None:
+        r_batches.append(batch)
+        batch_size += batch.shape[0]
+        processed_tokens += args['context']
 
-        if len(training_stages) == 2:
-            if training_stages[0] == 'vocab':
+        if batch_size >= args['batch_size']:
+            s_batch = np.vstack(r_batches)
 
-                new_vocab_size = int(training_stages[1])
+            model.update(s_batch, lr=learn_rate)
 
-                if new_vocab_size != vocab_size:
-                    epoch = 0
-                    flush()
+            flush()
 
-                    save_snapshot(sess, terminals, vocab_size)
+        if processed_tokens % save_every == 0:
 
-                    epochs += 0
+            loss_val, batch_count = model.evaluate(s_batch, save=True)
 
-                    vocab_size = new_vocab_size
+            print("Vocab: {}, Epoch {}, batch {}, loss {}".format(args['vocabulary_size'],
+                                                                  epoch,
+                                                                  batch_count,
+                                                                  loss_val))
 
-            elif training_stages[0] == 'epoch':
-                epoch = int(training_stages[1])
-                flush()
+model.save_snapshot()
 
-        in_, out_, lbl_, valid = parse_model_input(line.strip())
-
-        if learn_rate < 0: break
-
-        if valid:
-            in_batch.extend(in_)
-            out_batch.extend(out_)
-            lbl_batch.extend(lbl_)
-
-            if len(in_batch) >= batch_size:
-
-                # print(len(in_batch), len(out_batch), len(lbl_batch))
-                in_b, out_b, lbl_b = create_batch(model_name, in_batch, out_batch, lbl_batch)
-
-                feed_dict = {
-                    in_words_: in_b,
-                    out_words_: out_b,
-                    labels_: lbl_b,
-                    lr_: learn_rate,
-                    dropout_: 0.7
-                }
-
-                _, batch_count = sess.run([train_, adder_], feed_dict)
-
-                if batch_count % save_every == 0:
-                    # in_words, out_words, labels = first_batch
-                    feed_dict[dropout_] = 1.0
-                    loss_val, summary = sess.run([loss_, saveloss_], feed_dict)
-                    print("\t\tVocab: {}, Epoch {}, batch {}, loss {}".format(vocab_size, epoch, batch_count, loss_val))
-                    # save_path = saver.save(sess, ckpt_path)
-                    summary_writer.add_summary(summary, batch_count)
-
-                flush()
-
-    save_snapshot(sess, terminals, vocab_size)
+# # if args['gpu_mem'] == 0.:
+# #     gpu_options = tf.GPUOptions()
+# # else:
+# #     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=args['gpu_mem'])
+# #
+# # with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+# # with tf.Session() as sess:
+#
+#     # summary_writer = tf.summary.FileWriter(args['graph_path'],
+#     #                                        graph=sess.graph)
+#
+#     # Restore from checkpoint
+#     # if args['restore']:
+#         # try:
+#         #     saver.restore(sess, args['ckpt_path'])
+#         #     sess.graph.as_default()
+#         # except:
+#         #     print("Cannot restore: checkpoint does not exist")
+#         #     sys.exit()
+#
+#     for line in iter(sys.stdin.readline, ""):
+#
+#         batch = parse_model_input(line.strip())
+#
+#         if learn_rate < 0:
+#             print("Learning rate is suddenly negative")
+#             save_snapshot(sess, saver, terminals, args)
+#             break
+#
+#         if batch is not None:
+#             r_batches.append(batch)
+#             batch_size += batch.shape[0]
+#             processed_tokens += args['context']
+#
+#             if batch_size >= args['batch_size']:
+#
+#                 in_b, out_b, lbl_b = create_batch(args['model_name'], r_batches)
+#
+#                 _, batch_count = sess.run([train_, adder_], feed_dict = {
+#                     in_words_: in_b,
+#                     out_words_: out_b,
+#                     labels_: lbl_b,
+#                     lr_: learn_rate,
+#                     dropout_: 0.7
+#                 })
+#
+#                 flush()
+#
+#             if processed_tokens % save_every == 0:
+#
+#                 loss_val, summary = sess.run([loss_, saveloss_], feed_dict = {
+#                     in_words_: in_b,
+#                     out_words_: out_b,
+#                     labels_: lbl_b,
+#                     lr_: learn_rate,
+#                     dropout_: 1.0
+#                 })
+#
+#                 print("Vocab: {}, Epoch {}, batch {}, loss {}".format(args['vocabulary_size'],
+#                                                                       epoch,
+#                                                                       batch_count,
+#                                                                       loss_val))
+#                 # save_path = saver.save(sess, ckpt_path)
+#                 summary_writer.add_summary(summary, batch_count)
+#
+#
+#     save_snapshot(sess, saver, terminals, args)
 
 print("Finished trainig", time.asctime( time.localtime(time.time()) ))

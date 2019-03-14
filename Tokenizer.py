@@ -4,12 +4,17 @@ import pickle
 import mmap
 import re
 from collections import Counter
+from nltk.tokenize import  RegexpTokenizer
+
+
+####
+# String Expand Tokenizer
+####
 
 punct_chars = "[-!\"#$%&'()*+,/:;<=>?@[\]^_`{|}~—»«“”„….]" # add point .
-
 punct_chars_point = "[-!\"#$%&'()*+,/:;<=>?@[\]^_`{|}~—»«“”„….]" # add point .
-
 punct = re.compile(punct_chars)
+
 
 def keep_hyphen(search_str, position):
     if search_str[position] != "-":
@@ -91,21 +96,6 @@ def replace_accents_rus(sent_orig):
     return sent
 
 
-from nltk.tokenize import  RegexpTokenizer
-
-
-class Tokenizer:
-    def __init__(self):
-        self.tokenizer = RegexpTokenizer('\w+|[^\w\s]')
-
-    def __call__(self, lines, lower = False, split = True, hyphen=True):
-
-        if lower:
-            lines = lines.lower()
-        lines = replace_accents_rus(lines)
-        return self.tokenizer.tokenize(lines)
-
-
 # class Tokenizer:
 #
 #     def __call__(self,lines, lower = False, split = True, hyphen=True):
@@ -122,6 +112,28 @@ class Tokenizer:
 #             return tokenized.split()
 #         else:
 #             return tokenized
+
+
+####
+# NLTK Tokenizer wrapper
+####
+
+
+class Tokenizer:
+    def __init__(self):
+        self.tokenizer = RegexpTokenizer('\w+|[^\w\s]')
+
+    def __call__(self, line, lower = False, split = True, hyphen=True):
+
+        if lower:
+            line = line.lower()
+        line = replace_accents_rus(line)
+        return self.tokenizer.tokenize(line)
+
+
+####
+# NLTK Sent Tokenizer for Russian
+####
 
 
 import pickle
