@@ -93,7 +93,7 @@ for line in iter(sys.stdin.readline, ""):
 
     if batch is not None:
         r_batches.append(batch)
-        batch_size += batch.shape[0]
+        batch_size += args['context'] #batch.shape[0]
         processed_tokens += args['context']
 
         if batch_size >= args['batch_size']:
