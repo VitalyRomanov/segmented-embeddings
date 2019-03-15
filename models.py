@@ -64,7 +64,7 @@ class Skipgram:
 
         per_item_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels)
 
-        loss = tf.reduce_sum(per_item_loss, axis=0)
+        loss = tf.reduce_mean(per_item_loss, axis=0)
 
         train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
