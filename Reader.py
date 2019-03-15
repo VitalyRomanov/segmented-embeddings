@@ -69,7 +69,7 @@ class Reader:
 
         # read initial set of tokens
         self.tokens = self.voc.get_ids(
-            self.tokenizer(self.read_next().strip(), lower=True, hyphen=False), subsample=False
+            self.tokenizer(self.read_next().strip(), lower=True, hyphen=False), subsample=True
         )
 
     def get_tokens(self, from_top_n):
@@ -79,7 +79,7 @@ class Reader:
         else:
             # discard old tokens and append new ones
             new_tokens = self.tokenizer(nl.strip(), lower=True, hyphen=False)
-            token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n, subsample=False)
+            token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n, subsample=True)
             # self.tokens = self.tokens[self.position - self.window_size: -1] + token_ids.tolist()
             self.tokens = np.concatenate([self.tokens[self.position - self.window_size: -1], token_ids], axis=0)
             self.position = self.window_size
