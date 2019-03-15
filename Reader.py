@@ -69,7 +69,7 @@ class Reader:
 
         # read initial set of tokens
         self.tokens = self.voc.get_ids(
-            self.tokenizer(self.read_next().strip(), lower=True, hyphen=False)
+            self.tokenizer(self.read_next().strip(), lower=True, hyphen=False), subsample=False
         )
 
     def get_tokens(self, from_top_n):
@@ -79,7 +79,7 @@ class Reader:
         else:
             # discard old tokens and append new ones
             new_tokens = self.tokenizer(nl.strip(), lower=True, hyphen=False)
-            token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n)
+            token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n, subsample=False)
             # self.tokens = self.tokens[self.position - self.window_size: -1] + token_ids.tolist()
             self.tokens = np.concatenate([self.tokens[self.position - self.window_size: -1], token_ids], axis=0)
             self.position = self.window_size
@@ -104,13 +104,13 @@ class Reader:
 
         # w_s -= np.random.randint(self.window_size - 1)
 
-        tokens = self.tokens[self.position: self.position + n_c + w_span]
-        self.position += n_c + w_span
+        tokens = self.tokens[self.position - w_s: self.position + n_c + w_s]
+        self.position += n_c + w_s
 
         windows = rolling_window(tokens, w_span + 1)
 
-        central_w = np.tile(windows[:, w_s], (1, w_span)).reshape((-1,))
-        central_neg = np.tile(windows[:, w_s], (1, k)).reshape((-1,))
+        central_w = np.tile(windows[:, w_s].reshape((-1,1)), (1, w_span)).reshape((-1,))
+        central_neg = np.tile(windows[:, w_s].reshape((-1,1)), (1, k)).reshape((-1,))
         central_ = np.concatenate([central_w, central_neg], axis=0)
 
         context_w = np.delete(windows, w_s, axis=1).reshape((-1,))
@@ -150,41 +150,41 @@ class Reader:
 
         #########################
 
-        # batch = []
-        # context_count = 0
-        #
-        # while self.tokens is not None and context_count < self.n_contexts:
-        #     # get more tokens if necessary
-        #     while self.tokens is not None and self.position + 2 * self.window_size + 1 > len(self.tokens):
-        #         self.get_tokens(from_top_n)
-        #
-        #     # re-initialize if at the end of the file
-        #     if self.tokens is None:
-        #         self.init()
-        #         return None
-        #
-        #     c_token_id = self.tokens[self.position]
-        #
-        #     # generate positive samples
-        #     for i in range(-self.window_size, self.window_size + 1, 1):
-        #         if i == 0:
-        #             continue
-        #
-        #         c_pair_id = self.tokens[self.position + i]
-        #
-        #         batch.append([c_token_id, c_pair_id, 1.])
-        #
-        #     # generate negative samples
-        #     neg = self.voc.sample_negative(self.k)
-        #     for n in neg:
-        #         # if word is the same as central word, the pair is ommited
-        #         if n != c_token_id:
-        #             batch.append([c_token_id, n, 0.])
-        #
-        #     context_count += 1
-        #
-        #     self.position += 1
-        #
-        # bb = np.array(batch)
-        # return bb
-        # # return bb[:, 0], bb[:, 1], bb[:, 2]
+        batch = []
+        context_count = 0
+
+        while self.tokens is not None and context_count < self.n_contexts:
+            # get more tokens if necessary
+            while self.tokens is not None and self.position + 2 * self.window_size + 1 > len(self.tokens):
+                self.get_tokens(from_top_n)
+
+            # re-initialize if at the end of the file
+            if self.tokens is None:
+                self.init()
+                return None
+
+            c_token_id = self.tokens[self.position]
+
+            # generate positive samples
+            for i in range(-self.window_size, self.window_size + 1, 1):
+                if i == 0:
+                    continue
+
+                c_pair_id = self.tokens[self.position + i]
+
+                batch.append([c_token_id, c_pair_id, 1.])
+
+            # generate negative samples
+            neg = self.voc.sample_negative(self.k)
+            for n in neg:
+                # if word is the same as central word, the pair is ommited
+                if n != c_token_id:
+                    batch.append([c_token_id, n, 0.])
+
+            context_count += 1
+
+            self.position += 1
+
+        bb = np.array(batch, dtype=np.int32)
+        return bb
+        # return bb[:, 0], bb[:, 1], bb[:, 2]
