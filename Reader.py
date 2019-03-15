@@ -50,18 +50,18 @@ class Reader:
 
         self.init()
 
-    def read_next(self):
-        if self.wiki:
-            return self.reader.next_doc()
-        else:
-            return self.reader.readline()
+    # def read_next(self):
+    #     if self.wiki:
+    #         return self.reader.next_doc()
+    #     else:
+    #         return self.reader.readline()
 
     def init(self):
         # If file is opened
         if self.wiki:
             if self.reader is not None:
                 del self.reader
-            self.reader = self.readerClass(self.path)
+            self.reader = self.readerClass(self.path).wiki_docs
         else:
             if self.reader is not None:
                 self.reader.close()
@@ -69,20 +69,29 @@ class Reader:
 
         # read initial set of tokens
         self.tokens = self.voc.get_ids(
-            self.tokenizer(self.read_next().strip(), lower=True, hyphen=False), subsample=True
+            self.tokenizer(next(self.reader).strip(), lower=True, hyphen=False), subsample=True
         )
 
-    def get_tokens(self, from_top_n):
-        nl = self.read_next()
-        if nl == "" or nl is None:
-            self.tokens = None
-        else:
+    def get_tokens(self, from_top_n=None):
+        # nl = self.read_next()
+        try:
+            nl = next(self.reader)
             # discard old tokens and append new ones
             new_tokens = self.tokenizer(nl.strip(), lower=True, hyphen=False)
             token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n, subsample=True)
-            # self.tokens = self.tokens[self.position - self.window_size: -1] + token_ids.tolist()
             self.tokens = np.concatenate([self.tokens[self.position - self.window_size: -1], token_ids], axis=0)
             self.position = self.window_size
+        except StopIteration:
+            self.tokens = None
+        # if nl == "" or nl is None:
+        #     self.tokens = None
+        # else:
+        #     # discard old tokens and append new ones
+        #     new_tokens = self.tokenizer(nl.strip(), lower=True, hyphen=False)
+        #     token_ids = self.voc.get_ids(new_tokens, select_top=from_top_n, subsample=True)
+        #     # self.tokens = self.tokens[self.position - self.window_size: -1] + token_ids.tolist()
+        #     self.tokens = np.concatenate([self.tokens[self.position - self.window_size: -1], token_ids], axis=0)
+        #     self.position = self.window_size
 
     def next_batch(self, from_top_n=None):
         """
@@ -188,3 +197,45 @@ class Reader:
         # bb = np.array(batch, dtype=np.int32)
         # return bb
         # # return bb[:, 0], bb[:, 1], bb[:, 2]
+
+    def batches(self, style='skipgram'):
+        """
+        Generate next minibatch. Only words from vocabulary are included in minibatch
+        :return: batches for (context_word, second_word, label)
+        """
+
+        while self.tokens is not None:
+            while self.tokens is not None and \
+                    self.position + self.n_contexts + \
+                    2 * self.window_size + 1 > len(self.tokens):
+                self.get_tokens()
+
+            if self.tokens is None:
+                self.init()
+                break
+
+            w_span = 2 * self.window_size
+            w_s = self.window_size
+            n_c = self.n_contexts
+            k = self.k
+
+            # w_s -= np.random.randint(self.window_size - 1)
+
+            tokens = self.tokens[self.position - w_s: self.position + n_c + w_s]
+            self.position += n_c  # + w_s
+
+            windows = rolling_window(tokens, w_span + 1)
+
+            central_w = np.tile(windows[:, w_s].reshape((-1, 1)), (1, w_span)).reshape((-1,))
+            central_neg = np.tile(windows[:, w_s].reshape((-1, 1)), (1, k)).reshape((-1,))
+            central_ = np.concatenate([central_w, central_neg], axis=0)
+
+            context_w = np.delete(windows, w_s, axis=1).reshape((-1,))
+            context_neg = self.voc.sample_negative(k * n_c)
+            context_ = np.concatenate([context_w, context_neg], axis=0)
+
+            labels_ = np.concatenate([np.ones_like(context_w), np.zeros_like(context_neg)], axis=0)
+
+            batch_ = np.hstack([central_[:, None], context_[:, None], labels_[:, None]])
+
+            yield batch_

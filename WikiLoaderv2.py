@@ -6,12 +6,15 @@ class WikiDataLoader:
         # Path to extracted wiki dump
         self.path = path
 
+        self.init()
+
+    def init(self):
         # Prepare the list of subfolders in extracted wiki dump
-        self.folders = list(filter(lambda x: os.path.isdir(os.path.join(path,x)), os.listdir(path)))
-        self.folders.sort() # Ensure alphabetical order
+        self.folders = list(filter(lambda x: os.path.isdir(os.path.join(self.path, x)), os.listdir(self.path)))
+        self.folders.sort()  # Ensure alphabetical order
         # List of documents from wiki dump file
         self.docs = []
-        
+
         self.files = []
 
     def next_folder(self):
@@ -65,3 +68,10 @@ class WikiDataLoader:
             return self.docs.pop(0)
         else:
             return None
+
+    @property
+    def wiki_docs(self):
+        self.init()
+
+        while self.folders or self.files or self.docs:
+            yield self.next_doc()

@@ -68,15 +68,18 @@ for e in range(args.epochs):
     print("epoch=%d" % e)
     batch = next_batch(from_top_n=args.vocabulary_size)
 
-    while batch is not None:
+    # while batch is not None:
+    #     print(pickle.dumps(batch, protocol=4))
+    #     # for l in batch.tolist(): print(l)
+    #     # for a, p, l in zip(batch[0].tolist(), batch[1].tolist(), batch[2].tolist()):
+    #     #     seld_line(a, p, l)
+    #     #     # print(voc.id2word[a], voc.id2word[p], l)
+    #     #     pass
+    #     batch = next_batch(from_top_n=args.vocabulary_size)
+    #     # print("boom")
+    #     # sys.exit()
+
+    for batch in reader.batches():
         print(pickle.dumps(batch, protocol=4))
-        # for l in batch.tolist(): print(l)
-        # for a, p, l in zip(batch[0].tolist(), batch[1].tolist(), batch[2].tolist()):
-        #     seld_line(a, p, l)
-        #     # print(voc.id2word[a], voc.id2word[p], l)
-        #     pass
-        batch = next_batch(from_top_n=args.vocabulary_size)
-        # print("boom")
-        # sys.exit()
 
 # epochs += 0
