@@ -109,6 +109,15 @@ def get_model(args):
                         segmenter_path=args['segmenter'],
                         max_segments=args['segmenter_len'])
 
+    if args['model_name'] == "morph":
+        return Fasttext(vocab_size=args['vocabulary_size'],
+                        emb_size=args['dimensionality'],
+                        graph_path=args['graph_path'],
+                        ckpt_path=args['ckpt_path'],
+                        gpu_options=gpu_options,
+                        segmenter_path=args['segmenter'],
+                        max_segments=args['segmenter_len'])
+
     if args['model_name'] == "skipgram":
         return Skipgram(vocab_size=args['vocabulary_size'],
                         emb_size=args['dimensionality'],

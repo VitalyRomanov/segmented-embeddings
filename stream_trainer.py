@@ -59,7 +59,7 @@ epoch = 0
 init_learn_rate = args['learning_rate']
 learn_rate = init_learn_rate
 wiki_step = 0
-wiki_ceil = 101
+wiki_ceil = 202
 
 
 save_every = 1000000
