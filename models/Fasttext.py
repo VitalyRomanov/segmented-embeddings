@@ -1,6 +1,7 @@
 from models import Skipgram
 from utils import WordSegmenter
 import tensorflow as tf
+import numpy as np
 
 class Fasttext(Skipgram):
     def __init__(self, vocab_size=None,
@@ -20,6 +21,8 @@ class Fasttext(Skipgram):
         self.segmenter = WordSegmenter(segmenter_path, max_segments, vocab_size)
 
         self.max_segments = self.segmenter.max_len
+        self.segm_voc_size = self.vocabulary_size + self.segmenter.unique_segments - 1
+        # minus 1 to add constant zero padding for short words
 
         self.assemble_model()
 
@@ -39,18 +42,17 @@ class Fasttext(Skipgram):
         labels = tf.placeholder(dtype=tf.float32, shape=(None,),
                                 name="labels")
 
-        in_segments = tf.placeholder(dtype=tf.int32, shape=(None, self.max_segments),
-                                     name="in_words")
+        # in_segments = tf.placeholder(dtype=tf.int32, shape=(None, self.max_segments),
+        #                              name="in_words")
+        in_segments = tf.sparse.placeholder(dtype=tf.int32, shape=(None, self.max_segments),
+                                            name="in_words")
 
         out_words = tf.placeholder(dtype=tf.int32, shape=(None,),
                                    name="out_words")
 
         ###### Input word embedding matrix
         segm_matr = tf.get_variable("SEGM",
-                                    shape=[self.vocabulary_size + \
-                                           self.segmenter.unique_segments - 1,
-                                           # minus 1 to add constant zero padding for short words
-                                           self.emb_size],
+                                    shape=[self.segm_voc_size, self.emb_size],
                                     dtype=tf.float32)
 
         padding = tf.zeros(shape=(1, self.emb_size), dtype=tf.float32)
@@ -65,8 +67,13 @@ class Fasttext(Skipgram):
                                    initializer=tf.zeros([self.vocabulary_size]))
 
         ###### Embeddings
-        segm_emb = tf.nn.embedding_lookup(embedding_matr, in_segments, name="in_lookup")
-        in_emb = tf.reduce_sum(segm_emb, axis=1, name="sum_segm_emb")
+        in_emb = tf.nn.embedding_lookup_sparse(embedding_matr,
+                                                 in_segments,
+                                                 sp_weights=None,
+                                                 combiner='sum',
+                                                 name="sum_segm_emb")
+        # segm_emb = tf.nn.embedding_lookup(embedding_matr, in_segments, name="in_lookup")
+        # in_emb = tf.reduce_sum(segm_emb, axis=1, name="sum_segm_emb")
 
         out_emb = tf.nn.embedding_lookup(out_matr, out_words,
                                          name="out_lookup")
@@ -103,4 +110,8 @@ class Fasttext(Skipgram):
         }
 
     def expand_ids(self, ids):
-        return self.segmenter.segment(ids)
+        return denseNDArrayToSparseTensor(self.segmenter.segment(ids), self.segmenter.padding)
+
+def denseNDArrayToSparseTensor(arr, ignore_val):
+  idx  = np.where(arr != ignore_val)
+  return tf.SparseTensorValue(np.vstack(idx).T, arr[idx], arr.shape)

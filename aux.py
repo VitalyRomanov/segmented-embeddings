@@ -1,6 +1,6 @@
 import argparse
 from copy import copy
-from models import Skipgram, Fasttext, Morph, GPUOptions
+from models import Skipgram, Fasttext, Morph, MorphGram, GPUOptions
 # from models import assign_embeddings
 
 def parse_args():
@@ -30,10 +30,15 @@ def parse_args():
     if args.segmenter == "":
         if args.model_name == "fasttext":
             args.segmenter = "n_gram_segmentation/" + args.language
-            # args.segmenter_len = 15
+            args.segmenter_len = 15
         elif args.model_name == "morph":
             args.segmenter = "morpheme_segmentation/" + args.language
-            # args.segmenter_len = 8
+            args.segmenter_len = 8
+        elif args.model_name == 'morphgram':
+            args.segmenter = "n_gram_segmentation/" + args.language + \
+                             "__" + \
+                             "morpheme_segmentation/" + args.language
+            args.segmenter_len = "15__8"
 
     if args.voc_path == "":
         # args.voc_path = "vocabularies/%s/%s_voc_tokenized.pkl" % (args.language, args.language)
@@ -62,7 +67,11 @@ def format_args(args):
     args['wiki'] = bool(args['wiki'])
     # lang = args['language']
     # sgm_path = args['segmenter']
-    args['segmenter_len'] = int(args['segmenter_len'])
+    if args['model_name'] == 'morphgram':
+        args['segmenter_len'] = list(map(int, args['segmenter_len'].split("__")))
+        args['segmenter'] = args['segmenter'].split("__")
+    else:
+        args['segmenter_len'] = int(args['segmenter_len'])
     args['batch_size'] = int(args['batch_size'])
     # graph_saving_path = args['graph_path']
     # ckpt_path = args['ckpt_path']
@@ -117,6 +126,15 @@ def get_model(args):
                         gpu_options=gpu_options,
                         segmenter_path=args['segmenter'],
                         max_segments=args['segmenter_len'])
+
+    if args['model_name'] == "morphgram":
+        return MorphGram(vocab_size=args['vocabulary_size'],
+                     emb_size=args['dimensionality'],
+                     graph_path=args['graph_path'],
+                     ckpt_path=args['ckpt_path'],
+                     gpu_options=gpu_options,
+                     segmenter_path=args['segmenter'],
+                     max_segments=args['segmenter_len'])
 
     if args['model_name'] == "skipgram":
         return Skipgram(vocab_size=args['vocabulary_size'],
