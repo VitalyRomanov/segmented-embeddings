@@ -85,9 +85,18 @@ class WordSegmenter:
         for w in range(top_n_words, len(self.w2s)):
             self.w2s.pop(w)
 
-        # for s in range(len(self.id2s)):
-        #     if s not in segments_to_keep:
-        #         self.id2s.pop(s)
+        for s in range(len(self.id2s)):
+            if s not in segments_to_keep:
+                self.id2s.pop(s)
+
+        id2id = dict(zip(self.id2s.keys(), range(len(self.id2s))))
+        id2s = {id2id[id_]: self.id2s[id_] for id_ in self.id2s}
+        w2s = dict()
+        for w in self.w2s:
+            w2s[w] = [id2id[id_] for id_ in self.w2s[w]]
+
+        self.id2s = id2s
+        self.w2s = w2s
 
         # print("finished prunning")
 
