@@ -61,6 +61,7 @@ class WordSegmenter:
         # else:
         #     return np.stack([self.w2s[id_] for id_ in batch])
         try:
+            print(batch)
             return self.segment_projection[batch,:]
         except:
             print(batch)

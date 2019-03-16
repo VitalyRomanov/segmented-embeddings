@@ -125,7 +125,7 @@ class Skipgram:
         final = []
         batch_size = 50
         for offset in range(0, self.vocabulary_size, batch_size):
-            ids = self.expand_ids(np.array(list(range(offset, min(offset + batch_size, self.vocabulary_size)))))
+            ids = self.expand_ids(np.array(list(range(offset, min(offset + batch_size, self.vocabulary_size))), dtype=np.int32))
             embs = self.sess.run(self.terminals['final'], {self.terminals['in_words']: ids})
             final.append(embs)
 

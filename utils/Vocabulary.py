@@ -39,7 +39,7 @@ class Vocabulary:
 
         # buffers for random sampling
         self.negative_buffer = []
-        self.uniform_buffer = np.array([])
+        self.uniform_buffer = np.array([], dtype=np.int32)
         self.negative_buffer_position = 0
         self.uniform_buffer_position = 0
         self.subsampling_threshold = subsampling_threshold
@@ -57,7 +57,7 @@ class Vocabulary:
             words, word_ids = zip(*self.word2id.items())
             self.id2word = dict(zip(word_ids, words))
 
-            counts = np.array([self.id_count[id_] for id_ in sorted(self.id_count.keys())])
+            counts = np.array([self.id_count[id_] for id_ in sorted(self.id_count.keys())], dtype=np.int32)
             self.unigram_weights = counts / sum(counts)
             noise_weight = self.unigram_weights ** (3 / 4)
             # noise_weight = list(map(lambda x: reciprocal.pdf(x, 1, len(self)), range(1, len(self)+1)))
@@ -65,7 +65,7 @@ class Vocabulary:
 
             self.discard_prob = 1 - np.sqrt(self.subsampling_threshold / self.unigram_weights)
 
-            self.negative_buffer = np.array([])
+            self.negative_buffer = np.array([], dtype=np.int32)
             self.to_update = False
 
             self._total_count = sum(self.id_count.values())
@@ -80,7 +80,7 @@ class Vocabulary:
         k = token_ids.size
 
         if k == 0:
-            return np.array([])
+            return np.array([], dtype=np.int32)
 
         # calling np.random is slow. bufferize 100000 random samples and get slices every time the method is called
         if self.uniform_buffer_position + k > self.uniform_buffer.size:
@@ -103,7 +103,7 @@ class Vocabulary:
         return self.word2id.get(word, -1)
 
     def get_ids(self, words, subsample=True, select_top=None):
-        ids = np.array([self.get_id(w) for w in words])
+        ids = np.array([self.get_id(w) for w in words], dtype=np.int32)
 
         if select_top is not None:
             ids[ids >= select_top] = self.unk_id
@@ -236,7 +236,7 @@ class Vocabulary:
 
         # calling np.random is slow. bufferize k*10 random samples and get slices every time the method is called
         if self.negative_buffer_position + k >= len(self.negative_buffer):
-            self.negative_buffer = np.random.choice(np.array(list(self.id_count.keys())), 10000000, p=self.noise_weight)
+            self.negative_buffer = np.random.choice(np.array(list(self.id_count.keys()), dtype=np.int32), 10000000, p=self.noise_weight)
             self.negative_buffer_position = 0
 
         sample = self.negative_buffer[self.negative_buffer_position: self.negative_buffer_position + k]

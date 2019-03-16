@@ -41,7 +41,7 @@ def assign_embeddings(sess, terminals, vocab_size):
     attention_ = terminals['attention_mask']
 
     print("\t\tDumpung vocabulary of size %d" % vocab_size)
-    ids = np.array(list(range(vocab_size)))
+    ids = np.array(list(range(vocab_size)), dtype=np.int32)
 
     if model_name == 'morph' or model_name == 'fasttext':
         ids_expanded = segmenter.segment(ids)
