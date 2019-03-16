@@ -1,9 +1,8 @@
-from gensim.models import Word2Vec
+from gensim.models import FastText
 import time
 import os
 import logging
-from Tokenizer import Tokenizer
-import sys
+from utils.Tokenizer import Tokenizer
 import argparse
 
 parser = argparse.ArgumentParser(description='Train word vectors')
@@ -21,12 +20,13 @@ class MySentences(object):
         for line in open(self.dirname):
             yield self.tok(line, lower=True, hyphen=False)
 
+
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 sentences = MySentences(args.input_file)
 
-print("Word2vec training started, ", time.strftime("%Y-%m-%d %H:%M"))
-model = Word2Vec(sentences,
+print("FastText training started, ", time.strftime("%Y-%m-%d %H:%M"))
+model = FastText(sentences,
                  size=300,
                  window=5,
                  min_count=2,
@@ -36,13 +36,16 @@ model = Word2Vec(sentences,
                  ns_exponent=0.75,
                  sample=1e-4,
                  iter=1,
-                 compute_loss=True,
                  alpha=0.05,
                  min_alpha=5e-3,
-                 max_final_vocab=50000,
-                 sorted_vocab=1)
+                 sorted_vocab=1,
+                 max_vocab_size=100000,
+                 word_ngrams=1,
+                 bucket=120000,
+                 min_n=3,
+                 max_n=4)
 
-print("Word2vec training finished, ", time.strftime("%Y-%m-%d %H:%M"))
+print("FastText training finished, ", time.strftime("%Y-%m-%d %H:%M"))
 
 if not os.path.isdir(args.output_dir):
     os.mkdir(args.output_dir)

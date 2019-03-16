@@ -1,2 +1,4 @@
 en_voc_tokenized.pkl filter=lfs diff=lfs merge=lfs -text
 ru_voc_tokenized.pkl filter=lfs diff=lfs merge=lfs -text
+en_wc.pkl filter=lfs diff=lfs merge=lfs -text
+ru_wc.pkl filter=lfs diff=lfs merge=lfs -text

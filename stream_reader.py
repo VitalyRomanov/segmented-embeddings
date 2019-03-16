@@ -1,6 +1,4 @@
-import sys
-from Vocabulary import Vocabulary
-from Reader import Reader
+from utils import Reader, Vocabulary
 import pickle
 from aux import parse_args
 
@@ -23,8 +21,8 @@ args = parse_args()
 # graph_saving_path = "./models/%s" % model_name
 # ckpt_path = "%s/model.ckpt" % graph_saving_path
 
-
-voc = pickle.load(open(args.voc_path, "rb"))
+voc = Vocabulary.load_from_wordcount(args.voc_path)
+# voc = pickle.load(open(args.voc_path, "rb"))
 voc.prune(args.vocabulary_size)
 voc.set_subsampling_param(args.subsampling_parameter)
 

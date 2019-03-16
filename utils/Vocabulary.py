@@ -125,8 +125,7 @@ class Vocabulary:
         :return: None
         """
 
-        u, counts = np.unique(np.array(tokens), return_counts=True)
-
+        # u, counts = np.unique(np.array(tokens), return_counts=True)
         # for word, count in zip(u, counts):
         #     if word in self.word_count:
         #         self.word_count[word] += count
@@ -191,13 +190,23 @@ class Vocabulary:
         """
         pickle.dump(self, open(path, "wb"))
 
+    def save_wordcount(self, path):
+        pickle.dump(self.word_count, open(path, "wb"))
+
     @classmethod
-    def load(path):
+    def load(cls, path):
         """
         Load from disk
         :return: None
         """
-        return pickle.load(open(path, "wb"))
+        return pickle.load(open(path, "rb"))
+
+    @classmethod
+    def load_from_wordcount(cls, path):
+        wc = pickle.load(open(path, "rb"))
+        voc = Vocabulary()
+        voc.word_count = wc
+        return voc
 
     def total_tokens(self):
         """

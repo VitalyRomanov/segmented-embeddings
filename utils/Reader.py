@@ -1,5 +1,5 @@
 import numpy as np
-from Tokenizer import Tokenizer
+from utils.Tokenizer import Tokenizer
 
 def rolling_window(a, window):
     shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
@@ -28,9 +28,9 @@ class Reader:
         if wiki:
 
             if lang == 'en':
-                from WikiLoaderv2 import WikiDataLoader
+                from utils.WikiLoaderv2 import WikiDataLoader
             elif lang == 'ru':
-                from WikiLoaderv2 import WikiDataLoader
+                from utils.WikiLoaderv2 import WikiDataLoader
             self.readerClass = WikiDataLoader
 
         self.reader = None

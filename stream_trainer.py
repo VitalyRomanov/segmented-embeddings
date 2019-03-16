@@ -5,8 +5,8 @@ import numpy as np
 import time
 import pickle
 from ast import literal_eval
-from aux import format_args, get_model, save_snapshot
-
+from aux import format_args, get_model
+# from aux import save_snapshot
 
 
 sys.stdin.readline()
@@ -105,7 +105,7 @@ for line in iter(sys.stdin.readline, ""):
 
         if processed_tokens % save_every == 0:
 
-            loss_val, batch_count = model.evaluate(s_batch, save=True)
+            loss_val, batch_count = model.evaluate(s_batch, save=False)
 
             print("Vocab: {}, Epoch {}, batch {}, loss {}".format(args['vocabulary_size'],
                                                                   epoch,

@@ -1,6 +1,7 @@
 import argparse
 from copy import copy
-from models import assign_embeddings, Skipgram, GPUOptions
+from models import Skipgram, GPUOptions
+# from models import assign_embeddings
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train word vectors')
@@ -35,10 +36,11 @@ def parse_args():
             # args.segmenter_len = 8
 
     if args.voc_path == "":
-        args.voc_path = "vocabularies/%s/%s_voc_tokenized.pkl" % (args.language, args.language)
+        # args.voc_path = "vocabularies/%s/%s_voc_tokenized.pkl" % (args.language, args.language)
+        args.voc_path = "vocabularies/%s/%s_wc.pkl" % (args.language, args.language)
 
     if args.graph_path == "":
-        args.graph_path = "./models/%s" % args.model_name
+        args.graph_path = "./output/%s" % args.model_name
 
     if args.ckpt_path == "":
         args.ckpt_path = "%s/model.ckpt" % args.graph_path
@@ -73,8 +75,7 @@ def format_args(args):
 
 def get_model(args):
 
-    from WordSegmenter import WordSegmenter
-    from models import assemble_graph
+    # from models import assemble_graph
 
     if args['gpu_mem'] == 0.:
         gpu_options = GPUOptions()
@@ -82,21 +83,22 @@ def get_model(args):
         gpu_options = GPUOptions(per_process_gpu_memory_fraction=args['gpu_mem'])
 
     if args['model_name'] != 'skipgram':
-        segmenter = WordSegmenter(args['segmenter'],
-                                  args['language'],
-                                  args['segmenter_len'])
-        sgm = segmenter.segment
-
-        segm_voc_size = segmenter.unique_segments
-        word_segments = segmenter.max_len
-
-        print("Max Word Len is %d segments" % word_segments)
-
-        terminals = assemble_graph(model=args['model_name'],
-                                   vocab_size=args['vocabulary_size'],
-                                   segment_vocab_size=segm_voc_size,
-                                   max_word_segments=word_segments,
-                                   emb_size=args['dimensionality'])
+        raise NotImplementedError()
+        # segmenter = WordSegmenter(args['segmenter'],
+        #                           args['language'],
+        #                           args['segmenter_len'])
+        # sgm = segmenter.segment
+        #
+        # segm_voc_size = segmenter.unique_segments
+        # word_segments = segmenter.max_len
+        #
+        # print("Max Word Len is %d segments" % word_segments)
+        #
+        # terminals = assemble_graph(model=args['model_name'],
+        #                            vocab_size=args['vocabulary_size'],
+        #                            segment_vocab_size=segm_voc_size,
+        #                            max_word_segments=word_segments,
+        #                            emb_size=args['dimensionality'])
     else:
 
         return Skipgram(vocab_size=args['vocabulary_size'],
@@ -109,12 +111,12 @@ def get_model(args):
 
 
 
-def save_snapshot(sess, saver, terminals, args):
-    batch_count = sess.run(terminals['batch_count'])
-    path = "./%s/%s_%d_%d" % (args['graph_path'],
-                              args['model_name'],
-                              args['vocabulary_size'],
-                              batch_count)
-    ckpt_p = "%s/model.ckpt" % path
-    assign_embeddings(sess, terminals, args)
-    _ = saver.save(sess, ckpt_p)
+# def save_snapshot(sess, saver, terminals, args):
+#     batch_count = sess.run(terminals['batch_count'])
+#     path = "./%s/%s_%d_%d" % (args['graph_path'],
+#                               args['model_name'],
+#                               args['vocabulary_size'],
+#                               batch_count)
+#     ckpt_p = "%s/model.ckpt" % path
+#     assign_embeddings(sess, terminals, args)
+#     _ = saver.save(sess, ckpt_p)

@@ -1,8 +1,6 @@
 import tensorflow as tf
-import sys
-from Vocabulary import Vocabulary
-from Reader import Reader
-from WordSegmenter import WordSegmenter
+from utils.Reader import Reader
+from utils.WordSegmenter import WordSegmenter
 import pickle
 import argparse
 import numpy as np

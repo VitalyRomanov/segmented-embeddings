@@ -1,6 +1,6 @@
 import pickle
 import sys
-from WordSegmenter import WordSegmenter
+from utils.WordSegmenter import WordSegmenter
 
 lang = sys.argv[1]
 voc_p = sys.argv[2]
