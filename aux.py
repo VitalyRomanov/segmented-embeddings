@@ -1,6 +1,6 @@
 import argparse
 from copy import copy
-from models import Skipgram, Fasttext, GPUOptions
+from models import Skipgram, Fasttext, Morph, GPUOptions
 # from models import assign_embeddings
 
 def parse_args():
@@ -110,7 +110,7 @@ def get_model(args):
                         max_segments=args['segmenter_len'])
 
     if args['model_name'] == "morph":
-        return Fasttext(vocab_size=args['vocabulary_size'],
+        return Morph(vocab_size=args['vocabulary_size'],
                         emb_size=args['dimensionality'],
                         graph_path=args['graph_path'],
                         ckpt_path=args['ckpt_path'],
