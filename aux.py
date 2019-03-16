@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument('-r', type=int, default=0, dest='restore', help='Restore from checkpoint')
     parser.add_argument('-gm', type=float, default=0.0, dest='gpu_mem', help='Fraction of GPU memory to use')
     parser.add_argument('-lr', type=float, default=0.01, dest='learning_rate', help='Initial learning rate')
+    parser.add_argument('-lrdec', type=int, default=101, dest='learning_rate_decay', help='Learning rate decay delay')
     parser.add_argument('data_path', type=str, help='Path to training data. Can be plain file or wikipedia dump. Set flag \'--wiki\' if using wiki dump')
     parser.add_argument('-voc', type=str, default="", dest='voc_path', help='Path to vocabulary dump')
     parser.add_argument('-graph', type=str, default="", dest='graph_path', help='Graph saving path')
@@ -79,6 +80,7 @@ def format_args(args):
     args['gpu_mem'] = float(args['gpu_mem'])
     args['vocabulary_size'] = int(args['vocabulary_size'])
     args['learning_rate'] = float(args['learning_rate'])
+    args['learning_rate_decay'] = int(args['learning_rate_decay'])
     return args
 
 
