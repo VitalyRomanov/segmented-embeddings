@@ -137,18 +137,23 @@ class Skipgram:
     def update(self, batch, lr=0.001):
         train_ = self.terminals['train']
         adder_ = self.terminals['adder']
+        in_, out_, lbl_ = self.prepare_batch(batch)
         _, batch_count = self.sess.run([train_, adder_], feed_dict={
-            self.terminals['in_words']: self.expand_ids(batch[:, 0]),
-            self.terminals['out_words']: batch[:, 1],
-            self.terminals['labels']: batch[:, 2],
+            self.terminals['in_words']: in_,
+            self.terminals['out_words']: out_,
+            self.terminals['labels']: lbl_,
             self.terminals['learning_rate']: lr,
         })
 
+    def prepare_batch(self, batch):
+        return self.expand_ids(batch[:, 0]), batch[:, 1], batch[:, 2]
+
     def evaluate(self, batch, save=False):
+        in_, out_, lbl_ = self.prepare_batch(batch)
         loss_val, summary, batch_count = self.sess.run([self.terminals['loss'], self.terminals['saveloss'], self.terminals['batch_count']], feed_dict={
-            self.terminals['in_words']: self.expand_ids(batch[:, 0]),
-            self.terminals['out_words']: batch[:, 1],
-            self.terminals['labels']: batch[:, 2],
+            self.terminals['in_words']: in_,
+            self.terminals['out_words']: out_,
+            self.terminals['labels']: lbl_,
         })
 
         self.summary_writer.add_summary(summary, batch_count)

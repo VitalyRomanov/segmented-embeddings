@@ -107,7 +107,8 @@ def get_model(args):
                         ckpt_path=args['ckpt_path'],
                         gpu_options=gpu_options,
                         segmenter_path=args['segmenter'],
-                        max_segments=args['segmenter_len'])
+                        max_segments=args['segmenter_len'],
+                        model_type='flat')
 
     if args['model_name'] == "skipgram":
         return Skipgram(vocab_size=args['vocabulary_size'],

@@ -33,6 +33,7 @@ class WordSegmenter:
             self.max_len = maximum_segments + 1
 
         self.w2s_lens = clipped_lengths(self.w2s, self.max_len)
+        self.len_proj = len_projector(self.w2s, self.max_len)
 
         segment_projection = []
         for w in self.w2s:
@@ -52,7 +53,8 @@ class WordSegmenter:
         # self.w2s_str = {w: " ".join([str(el) for el in segm]) for w, segm in self.w2s.items()}
 
     def get_lens(self, items):
-        return np.array([self.w2s_lens[i] for i in items], dtype=np.int32)
+        # return np.array([self.w2s_lens[i] for i in items], dtype=np.int32)
+        return self.len_proj[items]
 
     def segment(self, batch):
     # def segment(self, batch, str_type=False):
@@ -60,12 +62,7 @@ class WordSegmenter:
         #     return np.stack([self.w2s_str[id_] for id_ in batch])
         # else:
         #     return np.stack([self.w2s[id_] for id_ in batch])
-        try:
-            print(batch)
-            return self.segment_projection[batch,:]
-        except:
-            print(batch)
-            raise Exception("wtf")
+        return self.segment_projection[batch,:]
 
 
     def from_segments(self, batch):
@@ -88,9 +85,9 @@ class WordSegmenter:
         for w in range(top_n_words, len(self.w2s)):
             self.w2s.pop(w)
 
-        for s in range(len(self.id2s)):
-            if s not in segments_to_keep:
-                self.id2s.pop(s)
+        # for s in range(len(self.id2s)):
+        #     if s not in segments_to_keep:
+        #         self.id2s.pop(s)
 
         # print("finished prunning")
 
@@ -105,3 +102,6 @@ def clipped_lengths(segmentation, max_len):
     for w in segmentation:
         w2s_lens[w] = min(max_len - 1, len(segmentation[w])) + 1
     return w2s_lens
+
+def len_projector(segmentation, max_len):
+    return np.array([min(max_len - 1, len(segmentation[w])) + 1 for w in range(len(segmentation))], dtype=np.int32)
