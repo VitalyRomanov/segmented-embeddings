@@ -138,7 +138,7 @@ class Skipgram:
         train_ = self.terminals['train']
         adder_ = self.terminals['adder']
         _, batch_count = self.sess.run([train_, adder_], feed_dict={
-            self.terminals['in_words']: batch[:, 0],
+            self.terminals['in_words']: self.expand_ids(batch[:, 0]),
             self.terminals['out_words']: batch[:, 1],
             self.terminals['labels']: batch[:, 2],
             self.terminals['learning_rate']: lr,
@@ -146,7 +146,7 @@ class Skipgram:
 
     def evaluate(self, batch, save=False):
         loss_val, summary, batch_count = self.sess.run([self.terminals['loss'], self.terminals['saveloss'], self.terminals['batch_count']], feed_dict={
-            self.terminals['in_words']: batch[:, 0],
+            self.terminals['in_words']: self.expand_ids(batch[:, 0]),
             self.terminals['out_words']: batch[:, 1],
             self.terminals['labels']: batch[:, 2],
         })

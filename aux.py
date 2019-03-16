@@ -1,6 +1,6 @@
 import argparse
 from copy import copy
-from models import Skipgram, GPUOptions
+from models import Skipgram, Fasttext, GPUOptions
 # from models import assign_embeddings
 
 def parse_args():
@@ -82,8 +82,8 @@ def get_model(args):
     else:
         gpu_options = GPUOptions(per_process_gpu_memory_fraction=args['gpu_mem'])
 
-    if args['model_name'] != 'skipgram':
-        raise NotImplementedError()
+    # if args['model_name'] != 'skipgram':
+    #     raise NotImplementedError()
         # segmenter = WordSegmenter(args['segmenter'],
         #                           args['language'],
         #                           args['segmenter_len'])
@@ -99,15 +99,24 @@ def get_model(args):
         #                            segment_vocab_size=segm_voc_size,
         #                            max_word_segments=word_segments,
         #                            emb_size=args['dimensionality'])
-    else:
+    # else:
+    if args['model_name'] == "fasttext":
+        return Fasttext(vocab_size=args['vocabulary_size'],
+                        emb_size=args['dimensionality'],
+                        graph_path=args['graph_path'],
+                        ckpt_path=args['ckpt_path'],
+                        gpu_options=gpu_options,
+                        segmenter_path=args['segmenter'],
+                        max_segments=args['segmenter_len'])
 
+    if args['model_name'] == "skipgram":
         return Skipgram(vocab_size=args['vocabulary_size'],
                         emb_size=args['dimensionality'],
                         graph_path=args['graph_path'],
                         ckpt_path=args['ckpt_path'],
                         gpu_options=gpu_options)
 
-    return terminals, sgm
+    # return terminals, sgm
 
 
 

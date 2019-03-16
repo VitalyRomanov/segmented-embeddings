@@ -1,6 +1,7 @@
 import os
 import sys
 
+
 class WikiDataLoader:
     def __init__(self, path):
         # Path to extracted wiki dump
@@ -24,8 +25,8 @@ class WikiDataLoader:
             print(c_folder)
 
             sub_path = os.path.join(self.path, c_folder)
-            self.files = list(filter(lambda x: os.path.isfile(os.path.join(sub_path,x)), os.listdir(sub_path)))
-            self.files = list(filter(lambda x: x[0]!='.', self.files))
+            self.files = list(filter(lambda x: os.path.isfile(os.path.join(sub_path, x)), os.listdir(sub_path)))
+            self.files = list(filter(lambda x: x[0] != '.', self.files))
             self.files.sort()
 
             self.sub_path = sub_path
@@ -33,7 +34,7 @@ class WikiDataLoader:
     def next_file(self):
 
         if not self.files:
-            self.next_folder()  
+            self.next_folder()
 
         if self.files:
             c_file = self.files.pop(0)
@@ -45,10 +46,9 @@ class WikiDataLoader:
             docs_list = []
             for doc in docs:
                 if doc.strip():
-                    
                     # filter the first line that contains <doc> tag
                     temp_doc = doc.split("\n")
-                    temp_doc = list(filter(lambda x: x!='' and x[0]!="<" , temp_doc))
+                    temp_doc = list(filter(lambda x: x != '' and x[0] != "<", temp_doc))
                     # while len(temp_doc) > 0 and temp_doc[0] == "":
                     #     temp_doc.pop(0)
                     # while len(temp_doc) > 0 and temp_doc[-1] == "":

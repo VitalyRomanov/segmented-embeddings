@@ -1,4 +1,4 @@
-import tensorflow as tf
+# import tensorflow as tf
 import sys
 
 import numpy as np
@@ -6,7 +6,6 @@ import time
 import pickle
 from ast import literal_eval
 from aux import format_args, get_model
-# from aux import save_snapshot
 
 
 sys.stdin.readline()
@@ -54,15 +53,6 @@ def flush():
     global r_batches, batch_size
     r_batches = []
     batch_size = 0
-
-
-# def create_batch(model_name, r_batches):
-#     batch = np.vstack(r_batches)
-#
-#     if model_name != 'skipgram':
-#         return sgm(batch[:, 0]), batch[:, 1], np.float32(batch[:, 2])
-#     else:
-#         return batch[:, 0], batch[:, 1], np.float32(batch[:, 2])
 
 
 epoch = 0
@@ -113,73 +103,5 @@ for line in iter(sys.stdin.readline, ""):
                                                                   loss_val))
 
 model.save_snapshot()
-
-# # if args['gpu_mem'] == 0.:
-# #     gpu_options = tf.GPUOptions()
-# # else:
-# #     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=args['gpu_mem'])
-# #
-# # with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-# # with tf.Session() as sess:
-#
-#     # summary_writer = tf.summary.FileWriter(args['graph_path'],
-#     #                                        graph=sess.graph)
-#
-#     # Restore from checkpoint
-#     # if args['restore']:
-#         # try:
-#         #     saver.restore(sess, args['ckpt_path'])
-#         #     sess.graph.as_default()
-#         # except:
-#         #     print("Cannot restore: checkpoint does not exist")
-#         #     sys.exit()
-#
-#     for line in iter(sys.stdin.readline, ""):
-#
-#         batch = parse_model_input(line.strip())
-#
-#         if learn_rate < 0:
-#             print("Learning rate is suddenly negative")
-#             save_snapshot(sess, saver, terminals, args)
-#             break
-#
-#         if batch is not None:
-#             r_batches.append(batch)
-#             batch_size += batch.shape[0]
-#             processed_tokens += args['context']
-#
-#             if batch_size >= args['batch_size']:
-#
-#                 in_b, out_b, lbl_b = create_batch(args['model_name'], r_batches)
-#
-#                 _, batch_count = sess.run([train_, adder_], feed_dict = {
-#                     in_words_: in_b,
-#                     out_words_: out_b,
-#                     labels_: lbl_b,
-#                     lr_: learn_rate,
-#                     dropout_: 0.7
-#                 })
-#
-#                 flush()
-#
-#             if processed_tokens % save_every == 0:
-#
-#                 loss_val, summary = sess.run([loss_, saveloss_], feed_dict = {
-#                     in_words_: in_b,
-#                     out_words_: out_b,
-#                     labels_: lbl_b,
-#                     lr_: learn_rate,
-#                     dropout_: 1.0
-#                 })
-#
-#                 print("Vocab: {}, Epoch {}, batch {}, loss {}".format(args['vocabulary_size'],
-#                                                                       epoch,
-#                                                                       batch_count,
-#                                                                       loss_val))
-#                 # save_path = saver.save(sess, ckpt_path)
-#                 summary_writer.add_summary(summary, batch_count)
-#
-#
-#     save_snapshot(sess, saver, terminals, args)
 
 print("Finished trainig", time.asctime( time.localtime(time.time()) ))
