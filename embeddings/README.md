@@ -1,0 +1,1 @@
+This folder will contain the output of the embedding model in the format of pickle dump of a numpy `ndarray`. The order of the vectors are the same as in the vocabulary.

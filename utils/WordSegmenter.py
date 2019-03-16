@@ -60,7 +60,12 @@ class WordSegmenter:
         #     return np.stack([self.w2s_str[id_] for id_ in batch])
         # else:
         #     return np.stack([self.w2s[id_] for id_ in batch])
-        return self.segment_projection[batch,:]
+        try:
+            return self.segment_projection[batch,:]
+        except:
+            print(batch)
+            raise Exception("wtf")
+
 
     def from_segments(self, batch):
         read = np.vectorize(lambda x: self.id2s[x])
