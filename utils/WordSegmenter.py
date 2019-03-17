@@ -6,7 +6,8 @@ class WordSegmenter:
     def __init__(self,
                  segmenter_files_path,
                  maximum_segments=None,
-                 total_words=-1):
+                 total_words=-1,
+                 include_word=True):
 
         segment2id_path = "%s/segment2id.pkl" % (segmenter_files_path)
         word2segment_path = "%s/word2segment.pkl" % (segmenter_files_path)
@@ -22,15 +23,17 @@ class WordSegmenter:
 
         self.padding = len(self.id2s)
         self.id2s[self.padding] = '#'
-        self.padding += self.total_words  # offset to include words as segments
+        self.padding += (self.total_words if include_word else 0)  # offset to include words as segments
 
         self.unique_segments = len(self.id2s)
 
+        add_one = 1 if include_word else 0
+
         # add 1 to include word as a segment
         if maximum_segments is None:
-            self.max_len = max(map(len, self.w2s.values())) + 1
+            self.max_len = max(map(len, self.w2s.values())) + add_one
         else:
-            self.max_len = maximum_segments + 1
+            self.max_len = maximum_segments + add_one
 
         self.w2s_lens = clipped_lengths(self.w2s, self.max_len)
         self.len_proj = len_projector(self.w2s, self.max_len)
@@ -41,11 +44,13 @@ class WordSegmenter:
             z = np.ones((self.max_len,), dtype=np.int32) * self.padding
             # truncate previous segmentation to fit into a blank
             # offset all segment ids by vocabulary size
-            truncated = np.array(self.w2s[w][:min(self.max_len - 1, len(self.w2s[w]))],
-                                 dtype=np.int32) + self.total_words
+            truncated = np.array(self.w2s[w][:min(self.max_len - add_one, len(self.w2s[w]))],
+                                 dtype=np.int32) + (self.total_words if include_word else 0)
             # add word to the list of segments
-            z[1:truncated.size + 1] = truncated
-            z[0] = w
+            z[add_one:truncated.size + add_one] = truncated
+            if include_word:
+                z[0] = w
+
             segment_projection.append(z.reshape((1,-1)))
 
         self.segment_projection = np.vstack(segment_projection)

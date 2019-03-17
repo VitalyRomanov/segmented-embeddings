@@ -45,7 +45,6 @@ print(len(arg_dict))
 for key, val in arg_dict.items():
     print("{}={}".format(key, val))
 
-
 # def seld_line(a, p, l):
 #     print("%d\t%d\t%d" % (a, p, l))
 #     # if model_name != 'skipgram':
@@ -64,8 +63,7 @@ for key, val in arg_dict.items():
 for e in range(args.epochs):
 
     print("epoch=%d" % e)
-    batch = next_batch(from_top_n=args.vocabulary_size)
-
+    # batch = next_batch(from_top_n=args.vocabulary_size)
     # while batch is not None:
     #     print(pickle.dumps(batch, protocol=4))
     #     # for l in batch.tolist(): print(l)
@@ -77,7 +75,12 @@ for e in range(args.epochs):
     #     # print("boom")
     #     # sys.exit()
 
-    for batch in reader.batches():
+    if args.model_name == "subwordcnn":
+        style = 'subwordcnn'
+    else:
+        style = 'skipgram'
+
+    for batch in reader.batches(style=style):
         print(pickle.dumps(batch, protocol=4))
 
 # epochs += 0
