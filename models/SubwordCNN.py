@@ -286,7 +286,7 @@ class SubwordCNN(Skipgram):
     #             feed_dict.update(dict(zip(pl, sparse_segments)))
     #     return feed_dict
 
-    def prepare_batch(self, batch, learn_rate, keep_prob):
+    def prepare_batch(self, batch, learn_rate=0.0, keep_prob=1.):
 
         placeholders = self.terminals['placeholders']
 
@@ -306,14 +306,29 @@ class SubwordCNN(Skipgram):
 
         return feed_dict
 
-    def prepare_for_placeholder(self, entry):
-        return [
-            denseNDArrayToSparseTensor(segmenter.segment(entry),
-                                       segmenter.padding)
-            for segmenter in [self.gram_segmenter,
-                              self.morph_segmenter,
-                              self.lemma_segmenter]
-        ]
+    def evaluate(self, batch, save=False):
+        feed_dict = self.prepare_batch(batch, 0.)
+
+        loss_val, summary, batch_count = self.sess.run([self.terminals['loss'],
+                                                        self.terminals['saveloss'],
+                                                        self.terminals['batch_count']],
+                                                       feed_dict=feed_dict)
+
+        self.summary_writer.add_summary(summary, batch_count)
+
+        if save:
+            self.saver.save(self.sess, self.ckpt_path)
+
+        return loss_val, batch_count
+
+    # def prepare_for_placeholder(self, entry):
+    #     return [
+    #         denseNDArrayToSparseTensor(segmenter.segment(entry),
+    #                                    segmenter.padding)
+    #         for segmenter in [self.gram_segmenter,
+    #                           self.morph_segmenter,
+    #                           self.lemma_segmenter]
+    #     ]
 
 
 def emb_matr_with_padding(prefix, shape):

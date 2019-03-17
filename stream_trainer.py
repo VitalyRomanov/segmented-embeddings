@@ -62,7 +62,7 @@ wiki_step = 0
 wiki_ceil = args['learning_rate_decay']
 
 
-save_every = 1000000
+save_every = 100000
 processed_tokens = 0
 batch_size = 0
 r_batches = []
