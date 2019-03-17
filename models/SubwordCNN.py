@@ -288,7 +288,7 @@ class SubwordCNN(Skipgram):
     def update(self, batch, lr=0.001):
         train_ = self.terminals['train']
         adder_ = self.terminals['adder']
-        feed_dict = self.prepare_batch(batch, learn_rate=lr, keep_prob=0.6)
+        feed_dict = self.prepare_batch(batch, learn_rate=lr, keep_prob=0.75)
         _, batch_count = self.sess.run([train_, adder_], feed_dict=feed_dict)
 
     # def prepare_batch_orig(self, batch, learn_rate, keep_prob):
@@ -380,8 +380,8 @@ def emb_matr_with_padding(prefix, shape):
 def convolutional_layer(input, units, cnn_kernel_shape, kp, activation=None):
     # padded = tf.pad(input, tf.constant([[0, 0], [1, 1], [0, 0]]))
     emb_sent_exp = tf.expand_dims(input, axis=3)
-    emb_sent_exp_drop = tf.nn.dropout(emb_sent_exp, keep_prob=kp)
-    convolve = tf.layers.conv2d(emb_sent_exp_drop,
+    # emb_sent_exp_drop = tf.nn.dropout(emb_sent_exp, keep_prob=kp)
+    convolve = tf.layers.conv2d(emb_sent_exp,
                                 units,
                                 cnn_kernel_shape,
                                 use_bias=False,
