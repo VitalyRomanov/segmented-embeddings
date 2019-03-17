@@ -424,10 +424,10 @@ def embed(emb_matr, subword):
 
 
 def embedding_projection(input_, emb_h1, emb_h2, kp):
-    input_drop = tf.nn.dropout(input_, keep_prob=kp, name="drop_1")
-    h1 = tf.layers.dense(input_drop, emb_h1, activation=tf.nn.sigmoid, name='projection_layer_1')
-    h1_drop = tf.nn.dropout(h1, keep_prob=kp, name="drop_2")
-    h2 = tf.layers.dense(h1_drop, emb_h2, activation=tf.nn.sigmoid, name='projection_layer_2')
+    # input_drop = tf.nn.dropout(input_, keep_prob=kp, name="drop_1")
+    h1 = tf.layers.dense(input_, emb_h1, activation=tf.nn.sigmoid, name='projection_layer_1')
+    # h1_drop = tf.nn.dropout(h1, keep_prob=kp, name="drop_2")
+    h2 = tf.layers.dense(h1, emb_h2, activation=tf.nn.sigmoid, name='projection_layer_2')
     return h2
 
 
