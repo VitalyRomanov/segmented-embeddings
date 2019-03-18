@@ -317,6 +317,7 @@ class SubwordCNN(Skipgram):
             placeholders = self.terminals['final_placeholders']
         else:
             placeholders = self.terminals['placeholders']
+            n_words = batch.shape[1]
 
         feed_dict = {
             self.terminals['learning_rate']: learn_rate,
@@ -326,16 +327,18 @@ class SubwordCNN(Skipgram):
         segmenters = [self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
 
         for pl, segmenter in zip(placeholders, segmenters):
-            n_words = batch.shape[1]
             bag = []
-            for i in range(n_words):
-                bag.append(segmenter.segment(batch[:, i])[:, None, :])
-            feed_dict[pl] = np.concatenate(bag, axis=1)
+            if saving:
+                feed_dict[pl] = batch
+            else:
+                for i in range(n_words):
+                    bag.append(segmenter.segment(batch[:, i])[:, None, :])
+                feed_dict[pl] = np.concatenate(bag, axis=1)
 
         return feed_dict
 
     def evaluate(self, batch, save=False):
-        feed_dict = self.prepare_batch(batch, 0.)
+        feed_dict = self.prepare_batch(batch, 0., saving=True)
 
         loss_val, summary, batch_count = self.sess.run([self.terminals['loss'],
                                                         self.terminals['saveloss'],

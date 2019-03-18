@@ -30,6 +30,8 @@ def parse_args():
     parser.add_argument('-voc', type=str, default="", dest='voc_path', help='Path to vocabulary dump')
     parser.add_argument('-graph', type=str, default="", dest='graph_path', help='Graph saving path')
     parser.add_argument('-ckpt', type=str, default="", dest='ckpt_path', help='CKPT saving path')
+    parser.add_argument('-save', action='store_true', help='Save embeddings')
+
     args = parser.parse_args()
 
     if args.segmenter == "":
@@ -95,6 +97,7 @@ def format_args(args):
     args['vocabulary_size'] = int(args['vocabulary_size'])
     args['learning_rate'] = float(args['learning_rate'])
     args['learning_rate_decay'] = int(args['learning_rate_decay'])
+    args['save'] = True if args['save'] == 'True' else False
     return args
 
 

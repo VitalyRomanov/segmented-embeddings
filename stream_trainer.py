@@ -18,8 +18,9 @@ args = format_args(args)
 for key,val in args.items():
     print("{}={}".format(key, val))
 
-
-if args['restore']:
+if args['save']:
+    print("Saving from checkpoint\n")
+elif args['restore']:
     print("Restoring from checkpoint\n")
 else:
     print("Training from scratch\n")
@@ -69,38 +70,40 @@ r_batches = []
 
 print("Starting training", time.asctime( time.localtime(time.time()) ))
 
-if args['restore']:
+if args['restore'] or args['save']:
     model.restore_graph()
 
-for line in iter(sys.stdin.readline, ""):
+if not args['save']:
 
-    batch = parse_model_input(line.strip())
+    for line in iter(sys.stdin.readline, ""):
 
-    if learn_rate < 0:
-        print("Learning rate is suddenly negative")
-        model.save_snapshot()
-        break
+        batch = parse_model_input(line.strip())
 
-    if batch is not None:
-        r_batches.append(batch)
-        batch_size += args['context'] #batch.shape[0]
-        processed_tokens += args['context']
+        if learn_rate < 0:
+            print("Learning rate is suddenly negative")
+            model.save_snapshot()
+            break
 
-        if batch_size >= args['batch_size']:
-            s_batch = np.vstack(r_batches)
+        if batch is not None:
+            r_batches.append(batch)
+            batch_size += args['context'] #batch.shape[0]
+            processed_tokens += args['context']
 
-            model.update(s_batch, lr=learn_rate)
+            if batch_size >= args['batch_size']:
+                s_batch = np.vstack(r_batches)
 
-            flush()
+                model.update(s_batch, lr=learn_rate)
 
-        if processed_tokens % save_every == 0:
+                flush()
 
-            loss_val, batch_count = model.evaluate(s_batch, save=False)
+            if processed_tokens % save_every == 0:
 
-            print("Vocab: {}, Epoch {}, batch {}, loss {}".format(args['vocabulary_size'],
-                                                                  epoch,
-                                                                  batch_count,
-                                                                  loss_val))
+                loss_val, batch_count = model.evaluate(s_batch, save=True)
+
+                print("Vocab: {}, Epoch {}, batch {}, loss {}".format(args['vocabulary_size'],
+                                                                      epoch,
+                                                                      batch_count,
+                                                                      loss_val))
 
 model.save_snapshot()
 
