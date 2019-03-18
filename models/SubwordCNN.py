@@ -338,7 +338,7 @@ class SubwordCNN(Skipgram):
         return feed_dict
 
     def evaluate(self, batch, save=False):
-        feed_dict = self.prepare_batch(batch, 0., saving=True)
+        feed_dict = self.prepare_batch(batch, 0.)
 
         loss_val, summary, batch_count = self.sess.run([self.terminals['loss'],
                                                         self.terminals['saveloss'],
@@ -356,7 +356,7 @@ class SubwordCNN(Skipgram):
         final = []
         batch_size = 50
         for offset in range(0, self.vocabulary_size, batch_size):
-            feed_dict = self.prepare_batch(np.array(list(range(offset, min(offset + batch_size, self.vocabulary_size))), dtype=np.int32))
+            feed_dict = self.prepare_batch(np.array(list(range(offset, min(offset + batch_size, self.vocabulary_size))), dtype=np.int32), saving=True)
             embs = self.sess.run(self.terminals['final'], feed_dict)
             final.append(embs)
 

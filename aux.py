@@ -20,8 +20,8 @@ def parse_args():
     parser.add_argument('-sgm', type=str, default="", dest='segmenter', help='Segmenter Path')
     parser.add_argument('-sgmlen', type=int, default=0, dest='segmenter_len',
                         help='Maximum length of segmented sequence')
-    parser.add_argument('-wiki', type=bool, default=True, dest='wiki', help='Read from wikipedia dump')
-    parser.add_argument('-r', type=int, default=0, dest='restore', help='Restore from checkpoint')
+    parser.add_argument('-wiki', action='store_true', help='Read from wikipedia dump')
+    parser.add_argument('-restore', action='store_true', help='Restore from checkpoint')
     parser.add_argument('-gm', type=float, default=0.0, dest='gpu_mem', help='Fraction of GPU memory to use')
     parser.add_argument('-lr', type=float, default=0.01, dest='learning_rate', help='Initial learning rate')
     parser.add_argument('-lrdec', type=int, default=101, dest='learning_rate_decay', help='Learning rate decay delay')
@@ -78,7 +78,7 @@ def format_args(args):
     # model_name = args['model_name']
     # data_path = args['data_path']
     # vocabulary_path = args['voc_path']
-    args['wiki'] = bool(args['wiki'])
+    args['wiki'] = True if args['wiki'] == 'True' else False
     # lang = args['language']
     # sgm_path = args['segmenter']
     if args['model_name'] == 'morphgram':
@@ -92,7 +92,7 @@ def format_args(args):
     args['batch_size'] = int(args['batch_size'])
     # graph_saving_path = args['graph_path']
     # ckpt_path = args['ckpt_path']
-    args['restore'] = int(args['restore'])
+    args['restore'] = True if args['restore'] == 'True' else False
     args['gpu_mem'] = float(args['gpu_mem'])
     args['vocabulary_size'] = int(args['vocabulary_size'])
     args['learning_rate'] = float(args['learning_rate'])
