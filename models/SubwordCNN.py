@@ -24,7 +24,7 @@ class SubwordCNN(Skipgram):
 
         self.gram_segmenter = WordSegmenter(segmenter_path[0], max_segments[0], vocab_size, include_word=False)
         self.morph_segmenter = WordSegmenter(segmenter_path[1], max_segments[1], vocab_size, include_word=False)
-        self.lemma_segmenter = WordSegmenter(segmenter_path[2], max_segments[2], vocab_size, include_word=False)
+        self.lemma_segmenter = WordSegmenter(segmenter_path[2], max_segments[2], vocab_size, include_word=True)
 
         self.max_grams = self.gram_segmenter.max_len
         self.max_morph = self.morph_segmenter.max_len
@@ -178,7 +178,7 @@ class SubwordCNN(Skipgram):
                                                shape=(self.morph_segmenter.unique_segments,
                                                       self.h['feat_emb_size']))
         lemma_emb_matr = emb_matr_with_padding('lemma',
-                                               shape=(self.lemma_segmenter.unique_segments,
+                                               shape=(self.lemma_segmenter.unique_segments + self.lemma_segmenter.total_words,
                                                       self.h['feat_emb_size']))
 
         gram_emb = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl, name='gram_lookup'), axis=-2)
