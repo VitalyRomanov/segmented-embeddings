@@ -227,14 +227,14 @@ class SubwordCNN(Skipgram):
         with tf.variable_scope('word_projection') as wp:
             word_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    word, (-1, feat_emb * 3)
-                ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, 1, feat_emb * 3)), axis=-1
+                    word, (-1, feat_emb * 4)
+                ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, 1, self.h['d_out'])), axis=-1
             )
             wp.reuse_variables()
             neg_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    neg, (-1, feat_emb * 3)
-                ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.n_neg, feat_emb * 3)), axis=-1
+                    neg, (-1, feat_emb * 4)
+                ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.n_neg, self.h['d_out'])), axis=-1
             )
 
         ##### Loss
