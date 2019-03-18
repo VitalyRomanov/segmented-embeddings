@@ -167,14 +167,14 @@ class SubwordCNN(Skipgram):
         num_words = self.context_size + 1 + self.n_neg
         feat_emb = self.h['feat_emb_size']
 
-        words_pl = tf.placeholder(dtype=tf.int32, shape=(None, None))
+        # words_pl = tf.placeholder(dtype=tf.int32, shape=(None, None))
         gram_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.max_grams))
         morph_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.max_morph))
         lemma_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.lemma_segmenter.max_len))
 
-        word_emb_matr = emb_matr_with_padding('word',
-                                              shape=(self.vocabulary_size,
-                                                     self.h['feat_emb_size']))
+        # word_emb_matr = emb_matr_with_padding('word',
+        #                                       shape=(self.vocabulary_size,
+        #                                              self.h['feat_emb_size']))
         gram_emb_matr = emb_matr_with_padding('gram',
                                               shape=(self.gram_segmenter.unique_segments,
                                                      self.h['feat_emb_size']))
@@ -185,13 +185,13 @@ class SubwordCNN(Skipgram):
                                                shape=(self.lemma_segmenter.unique_segments + self.lemma_segmenter.total_words,
                                                       self.h['feat_emb_size']))
 
-        word_emb = tf.nn.embedding_lookup(word_emb_matr, words_pl, name='word_lookup')
+        # word_emb = tf.nn.embedding_lookup(word_emb_matr, words_pl, name='word_lookup')
         gram_emb = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl, name='gram_lookup'), axis=-2)
         morph_emb = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl, name='morph_lookup'), axis=-2)
         lemma_emb = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl, name='lemma_lookup'), axis=-2)
 
         all_concat = tf.concat([
-            word_emb,
+            # word_emb,
             gram_emb,
             morph_emb,
             lemma_emb
@@ -238,18 +238,18 @@ class SubwordCNN(Skipgram):
         with tf.variable_scope('word_projection') as wp:
             word_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    word, (-1, feat_emb * 4)
+                    word, (-1, feat_emb * 3)
                 ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, 1, self.h['d_out'])), axis=-1
             )
             wp.reuse_variables()
             neg_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    neg, (-1, feat_emb * 4)
+                    neg, (-1, feat_emb * 3)
                 ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.n_neg, self.h['d_out'])), axis=-1
             )
             all_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    all_concat, (-1, feat_emb * 4)
+                    all_concat, (-1, feat_emb * 3)
                 ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.h['d_out'])), axis=-1
             )
 
@@ -299,7 +299,7 @@ class SubwordCNN(Skipgram):
         saveloss = tf.summary.scalar('loss', loss)
 
         self.terminals = {
-            'placeholders': [words_pl, gram_pl, morph_pl, lemma_pl],
+            'placeholders': [gram_pl, morph_pl, lemma_pl],
             # 'final_placeholders': [word_pl_final, gram_pl_final, morph_pl_final, lemma_pl_final],
             'loss': loss,
             'train': train,
@@ -350,7 +350,7 @@ class SubwordCNN(Skipgram):
             self.terminals['dropout']: keep_prob
         }
 
-        segmenters = [None, self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
+        segmenters = [self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
 
         for ind, (pl, segmenter) in enumerate(zip(placeholders, segmenters)):
             bag = []
@@ -360,12 +360,12 @@ class SubwordCNN(Skipgram):
             #     else:
             #         feed_dict[pl] = segmenter.segment(batch)
             # else:
-            if ind == 0:
-                feed_dict[pl] = batch
-            else:
-                for i in range(n_words):
-                    bag.append(segmenter.segment(batch[:, i])[:, None, :])
-                feed_dict[pl] = np.concatenate(bag, axis=1)
+            # if ind == 0:
+            #     feed_dict[pl] = batch
+            # else:
+            for i in range(n_words):
+                bag.append(segmenter.segment(batch[:, i])[:, None, :])
+            feed_dict[pl] = np.concatenate(bag, axis=1)
 
         return feed_dict
 
