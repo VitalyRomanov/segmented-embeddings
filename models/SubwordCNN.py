@@ -251,7 +251,7 @@ class SubwordCNN(Skipgram):
 
             gram_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_grams))
             morph_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_morph))
-            lemma_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, 1))
+            lemma_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.lemma_segmenter.max_len))
 
             gram_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl_final, name='gram_lookup_final'), axis=-2)
             morph_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl_final, name='morph_lookup_final'), axis=-2)
