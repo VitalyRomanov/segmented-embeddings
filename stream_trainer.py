@@ -63,14 +63,14 @@ wiki_step = 0
 wiki_ceil = args['learning_rate_decay']
 
 
-save_every = 100000
+save_every = 1000000
 processed_tokens = 0
 batch_size = 0
 r_batches = []
 
 print("Starting training", time.asctime( time.localtime(time.time()) ))
 
-if args['restore'] or args['save']:
+if args['restore']:# or args['save']:
     model.restore_graph()
 
 if not args['save']:

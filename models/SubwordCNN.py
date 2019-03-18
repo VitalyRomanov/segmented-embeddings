@@ -329,7 +329,7 @@ class SubwordCNN(Skipgram):
         for pl, segmenter in zip(placeholders, segmenters):
             bag = []
             if saving:
-                feed_dict[pl] = batch
+                feed_dict[pl] = segmenter.segment(batch)
             else:
                 for i in range(n_words):
                     bag.append(segmenter.segment(batch[:, i])[:, None, :])
