@@ -167,10 +167,14 @@ class SubwordCNN(Skipgram):
         num_words = self.context_size + 1 + self.n_neg
         feat_emb = self.h['feat_emb_size']
 
+        words_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words))
         gram_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words, self.max_grams))
         morph_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words, self.max_morph))
         lemma_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words, self.lemma_segmenter.max_len))
 
+        word_emb_matr = emb_matr_with_padding('word',
+                                              shape=(self.vocabulary_size,
+                                                     self.h['feat_emb_size']))
         gram_emb_matr = emb_matr_with_padding('gram',
                                               shape=(self.gram_segmenter.unique_segments,
                                                      self.h['feat_emb_size']))
@@ -181,11 +185,13 @@ class SubwordCNN(Skipgram):
                                                shape=(self.lemma_segmenter.unique_segments + self.lemma_segmenter.total_words,
                                                       self.h['feat_emb_size']))
 
+        word_emb = tf.nn.embedding_lookup(word_emb_matr, words_pl, name='word_lookup')
         gram_emb = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl, name='gram_lookup'), axis=-2)
         morph_emb = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl, name='morph_lookup'), axis=-2)
         lemma_emb = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl, name='lemma_lookup'), axis=-2)
 
         context = tf.concat([
+            word_emb[:, :self.context_size, ...],
             gram_emb[:, :self.context_size, ...],
             morph_emb[:, :self.context_size, ...],
             lemma_emb[:, :self.context_size, ...]
@@ -193,12 +199,14 @@ class SubwordCNN(Skipgram):
         # shape (None, context_size, feat_emb * 3)
 
         word = tf.concat([
+            word_emb[:, self.context_size, ...],
             gram_emb[:, self.context_size, ...],
             morph_emb[:, self.context_size, ...],
             lemma_emb[:, self.context_size, ...]
         ], axis=-1)
 
         neg = tf.concat([
+            word_emb[:, self.context_size + 1:, ...],
             gram_emb[:, self.context_size + 1:, ...],
             morph_emb[:, self.context_size + 1:, ...],
             lemma_emb[:, self.context_size + 1:, ...]
@@ -248,16 +256,18 @@ class SubwordCNN(Skipgram):
         ###### Final Emb
 
         with tf.variable_scope("final_embeddings") as fe:
-
+            word_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, ))
             gram_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_grams))
             morph_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_morph))
             lemma_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.lemma_segmenter.max_len))
 
+            word_emb_final = tf.nn.embedding_lookup(word_emb_matr, word_pl_final, name='word_lookup_final')
             gram_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl_final, name='gram_lookup_final'), axis=-2)
             morph_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl_final, name='morph_lookup_final'), axis=-2)
             lemma_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl_final, name='lemma_lookup_final'), axis=-2)
 
             all = tf.concat([
+                word_emb_final,
                 gram_emb_final,
                 morph_emb_final,
                 lemma_emb_final
@@ -273,8 +283,8 @@ class SubwordCNN(Skipgram):
         saveloss = tf.summary.scalar('loss', loss)
 
         self.terminals = {
-            'placeholders': [gram_pl, morph_pl, lemma_pl],
-            'final_placeholders': [gram_pl_final, morph_pl_final, lemma_pl_final],
+            'placeholders': [words_pl, gram_pl, morph_pl, lemma_pl],
+            'final_placeholders': [word_pl_final, gram_pl_final, morph_pl_final, lemma_pl_final],
             'loss': loss,
             'train': train,
             'adder': adder,
@@ -324,16 +334,22 @@ class SubwordCNN(Skipgram):
             self.terminals['dropout']: keep_prob
         }
 
-        segmenters = [self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
+        segmenters = [None, self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
 
-        for pl, segmenter in zip(placeholders, segmenters):
+        for ind, (pl, segmenter) in enumerate(zip(placeholders, segmenters)):
             bag = []
             if saving:
-                feed_dict[pl] = segmenter.segment(batch)
+                if ind == 0:
+                    feed_dict[pl] = batch
+                else:
+                    feed_dict[pl] = segmenter.segment(batch)
             else:
-                for i in range(n_words):
-                    bag.append(segmenter.segment(batch[:, i])[:, None, :])
-                feed_dict[pl] = np.concatenate(bag, axis=1)
+                if ind == 0:
+                    feed_dict[pl] = batch
+                else:
+                    for i in range(n_words):
+                        bag.append(segmenter.segment(batch[:, i])[:, None, :])
+                    feed_dict[pl] = np.concatenate(bag, axis=1)
 
         return feed_dict
 
