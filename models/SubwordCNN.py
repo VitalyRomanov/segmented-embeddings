@@ -169,7 +169,7 @@ class SubwordCNN(Skipgram):
 
         gram_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words, self.max_grams))
         morph_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words, self.max_morph))
-        lemma_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words, 1))
+        lemma_pl = tf.placeholder(dtype=tf.int32, shape=(None, num_words, self.lemma_segmenter.max_len))
 
         gram_emb_matr = emb_matr_with_padding('gram',
                                               shape=(self.gram_segmenter.unique_segments,
