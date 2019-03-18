@@ -52,7 +52,7 @@ def parse_args():
                              "morpheme_segmentation/" + args.language + \
                              "__" + \
                              "lemmas/" + args.language
-            args.segmenter_len = "15__8__2"
+            args.segmenter_len = "15__8__1"
 
     if args.voc_path == "":
         # args.voc_path = "vocabularies/%s/%s_voc_tokenized.pkl" % (args.language, args.language)
