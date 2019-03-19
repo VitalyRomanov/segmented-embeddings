@@ -339,34 +339,33 @@ class SubwordCNN(Skipgram):
                                   [0, 0, 0],
                                   [self.batch_size, self.context_size, total_segments])
         word_neg = tf.sparse.slice(all_pl,
-                              [0, self.context_size, 0],
-                              [self.batch_size, self.n_neg + 1, total_segments])
+                                   [0, self.context_size, 0],
+                                   [self.batch_size, self.n_neg + 1, total_segments])
 
         ##### CNN emb
         with tf.variable_scope("context_embedding") as ce:
-            cnn_embedding = tf.get_variable("cnn_embedding", shape=(self.segm_voc_size, self.h['d_out']), dtype=tf.float32)
+            cnn_embedding = tf.get_variable("cnn_embedding", shape=(self.segm_voc_size, self.h['d_out']),
+                                            dtype=tf.float32)
 
             contexts = []
             for i in range(0, self.context_size - sliding_window_size):
                 c = tf.sparse.slice(context, [0, i, 0],
-                         [self.batch_size, sliding_window_size, total_segments])
+                                    [self.batch_size, sliding_window_size, total_segments])
                 contexts.append(tf.expand_dims(tf.reduce_sum(
                     tf.nn.safe_embedding_lookup_sparse(
                         embedding_weights=cnn_embedding,
                         sparse_ids=c,
                         sparse_weights=None,
                         combiner="sum"), axis=-2), axis=1,
-                ) )
+                ))
 
             context_emb = tf.nn.l2_normalize(tf.reduce_max(tf.concat(
                 contexts, axis=1
             ), axis=1))
 
-
         ##### Word Embedding
 
         with tf.variable_scope('word_projection') as wp:
-
             word_emb_h1 = tf.get_variable("word_emb_h1", shape=(self.segm_voc_size, self.h['d_hid']), dtype=tf.float32)
             bias_word_emb_h1 = tf.get_variable("bias_word_emb_h1", shape=(self.h['d_hid'],), dtype=tf.float32)
 
@@ -374,10 +373,10 @@ class SubwordCNN(Skipgram):
 
             embed_layer_1 = tf.nn.sigmoid(
                 tf.nn.safe_embedding_lookup_sparse(
-                        embedding_weights=word_emb_h1,
-                        sparse_ids=flattenwith_batch,
-                        sparse_weights=None,
-                        combiner="sum") + bias_word_emb_h1)
+                    embedding_weights=word_emb_h1,
+                    sparse_ids=flattenwith_batch,
+                    sparse_weights=None,
+                    combiner="sum") + bias_word_emb_h1)
 
             embed_layer_2 = tf.layers.dense(
                 embed_layer_1,
@@ -393,8 +392,8 @@ class SubwordCNN(Skipgram):
                                                  shape=(-1, self.n_neg + 1, self.h['d_out']),
                                                  name="batch_word_neg_restored")
 
-            word_emb = batch_word_neg_restored[:,0,:]
-            neg_emb = batch_word_neg_restored[:,1:,:]
+            word_emb = batch_word_neg_restored[:, 0, :]
+            neg_emb = batch_word_neg_restored[:, 1:, :]
 
             wp.reuse_variables()
 
@@ -410,10 +409,6 @@ class SubwordCNN(Skipgram):
                 self.h['d_out'],
                 activation=tf.nn.sigmoid,
                 name="word_emb_h2")
-
-
-
-
 
         ##### Loss
 
@@ -487,10 +482,16 @@ class SubwordCNN(Skipgram):
         }
 
         segmenters = [self.lemma_segmenter, self.gram_segmenter, self.morph_segmenter]
-        offset = [
+        # offset = [
+        #     0,
+        #     segmenters[0].unique_segments,
+        #     segmenters[0].unique_segments + segmenters[1].unique_segments
+        # ]
+        pos_offset = [
             0,
-            segmenters[0].unique_segments,
-            segmenters[0].unique_segments + segmenters[1].unique_segments
+            segmenters[0].max_len,
+            segmenters[0].max_len + segmenters[1].max_len,
+            segmenters[0].max_len + segmenters[1].max_len + segmenters[2].max_len
         ]
 
         indices_ = []
@@ -498,29 +499,46 @@ class SubwordCNN(Skipgram):
 
         lim = self.max_grams + self.max_morph + self.lemma_segmenter.max_len
 
-        for b in range(n_batch):
-            for i in range(n_words):
-                c_pos = 0
-                for ind, segmenter in enumerate(segmenters):
-                    seg_ids = np.array(segmenter.w2s[batch[b, i]], dtype=np.int32).reshape((-1, 1)) + \
-                              offset[ind]
-                    app = seg_ids[:lim - c_pos]
-                    b_id = np.full((app.size, 1), b)
-                    i_id = np.full((app.size, 1), i)
-                    s_id = np.arange(c_pos, c_pos + app.size, 1).reshape(-1, 1)
-                    c_pos += app.size
-                    indices_.append(np.hstack([b_id, i_id, s_id]))
-                    values_.append(app)
+        bbatch = np.zeros((n_batch, n_words, lim))
 
-        indices = np.vstack(indices_)
-        values = np.concatenate(values_)
-        shape = (batch.shape[0], batch.shape[1], lim)
+        print(bbatch.shape)
+
+        for i in range(n_words):
+            bbatch[:, i, pos_offset[0]:pos_offset[1]] = segmenters[0].segment(batch[:, i])
+            bbatch[:, i, pos_offset[1]:pos_offset[2]] = segmenters[0].segment(batch[:, i])
+            bbatch[:, i, pos_offset[2]:pos_offset[3]] = segmenters[0].segment(batch[:, i])
+
+        restricted = [segmenter.padding for segmenter in segmenters]
+
+        indices = np.where((bbatch != restricted[0])&(bbatch != restricted[1])&(bbatch != restricted[2]))
+        values = bbatch[indices]
+        shape = bbatch.shape
+
+        ind = np.vstack(indices).T
+
+        # for b in range(n_batch):
+        #     for i in range(n_words):
+        #         c_pos = 0
+        #         for ind, segmenter in enumerate(segmenters):
+        #             seg_ids = np.array(segmenter.w2s[batch[b, i]], dtype=np.int32).reshape((-1, 1)) + \
+        #                       offset[ind]
+        #             app = seg_ids[:lim - c_pos]
+        #             b_id = np.full((app.size, 1), b)
+        #             i_id = np.full((app.size, 1), i)
+        #             s_id = np.arange(c_pos, c_pos + app.size, 1).reshape(-1, 1)
+        #             c_pos += app.size
+        #             indices_.append(np.hstack([b_id, i_id, s_id]))
+        #             values_.append(app)
+
+        # indices = np.vstack(indices_)
+        # values = np.concatenate(values_)
+        # shape = (batch.shape[0], batch.shape[1], lim)
 
         if saving:
-            indices = np.delete(indices, 1, axis=1)
+            ind = np.delete(ind, 1, axis=1)
             shape = (batch.shape[0], lim)
 
-        feed_dict[placeholders] = tf.SparseTensorValue(indices,
+        feed_dict[placeholders] = tf.SparseTensorValue(ind,
                                                        values.reshape((-1,)),
                                                        shape)
 
