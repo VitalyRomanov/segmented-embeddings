@@ -459,7 +459,6 @@ class SubwordCNN(Skipgram):
                                                        np.ones((a.shape[0], )),
                                                        (batch.shape[0], batch.shape[1], self.feat_space))
 
-        print(feed_dict[placeholders])
 
         return feed_dict
 
