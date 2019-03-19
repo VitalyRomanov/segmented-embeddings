@@ -42,6 +42,7 @@ class SubwordCNN(Skipgram):
         self.n_neg = negative
         self.context_size = n_context
         self.temp = 100.
+        self.feat_space = self.gram_segmenter.unique_segments + self.morph_segmenter.unique_segments + self.lemma_segmenter.unique_segments
 
         self.assemble_model()
 
@@ -327,9 +328,7 @@ class SubwordCNN(Skipgram):
 
         ##### Placeholders for words
 
-        feat_space = self.gram_segmenter.unique_segments + self.morph_segmenter.unique_segments + self.lemma_segmenter.unique_segments
-
-        all_concat = tf.placeholder(dtype=tf.float32, shape=(None, None, feat_space))
+        all_concat = tf.placeholder(dtype=tf.float32, shape=(None, None, self.feat_space))
 
         context = all_concat[:, :self.context_size, ...]
         word = all_concat[:, self.context_size, ...]
@@ -435,19 +434,20 @@ class SubwordCNN(Skipgram):
 
         segmenters = [self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
 
-        all = []
-        for ind, segmenter in enumerate(segmenters):
-            bag = []
-            for b in range(n_batch):
-                row = []
-                for i in range(n_words):
-                    val = np.zeros((segmenter.unique_segments), dtype=np.int32)
-                    val[segmenter.segment([batch[b, i]])[0]] = 1
-                    row.append(val)
-                bag.append(row)
-            all.append(np.array(bag))
+        cache = {}
+        if batch.shape not in cache:
+            cache[batch.shape] = np.zeros((batch.shape[0], batch.shape[1], self.feat_space))
 
-        feed_dict[placeholders] = np.concatenate(all, axis=-1)
+        cache[batch.shape][...] = 0
+
+        for ind, segmenter in enumerate(segmenters):
+            for b in range(n_batch):
+                for i in range(n_words):
+                    seg_ids = np.array(segmenter.w2s[batch[b,i]], dtype=np.int32)
+                    cache[batch.shape][b,i,seg_ids] = 0
+
+        feed_dict[placeholders] = cache[batch.shape]
+        print(feed_dict[placeholders].shape)
 
         return feed_dict
 
