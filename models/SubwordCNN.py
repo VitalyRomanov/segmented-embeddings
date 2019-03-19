@@ -24,7 +24,7 @@ class SubwordCNN(Skipgram):
 
         self.gram_segmenter = WordSegmenter(segmenter_path[0], max_segments[0], vocab_size, include_word=False)
         self.morph_segmenter = WordSegmenter(segmenter_path[1], max_segments[1], vocab_size, include_word=False)
-        self.lemma_segmenter = WordSegmenter(segmenter_path[2], max_segments[2], vocab_size, include_word=True)
+        self.lemma_segmenter = WordSegmenter(segmenter_path[2], max_segments[2], vocab_size, include_word=False)
 
         self.max_grams = self.gram_segmenter.max_len
         self.max_morph = self.morph_segmenter.max_len
@@ -35,6 +35,7 @@ class SubwordCNN(Skipgram):
 
         self.h = {
             'feat_emb_size': 100,
+            'd_hid': 500,
             'd_out': emb_size,
         }
 
@@ -151,7 +152,7 @@ class SubwordCNN(Skipgram):
     #         'dropout': keep_prob
     #     }
 
-    def assemble_model(self):
+    def assemble_model_emb_based(self):
         counter = tf.Variable(0, dtype=tf.int32)
         adder = tf.assign(counter, counter + 1)
 
@@ -311,6 +312,125 @@ class SubwordCNN(Skipgram):
             'dropout': keep_prob
         }
 
+
+    def assemble_model(self):
+        counter = tf.Variable(0, dtype=tf.int32)
+        adder = tf.assign(counter, counter + 1)
+
+        sliding_window_size = 3
+
+        ###### Placeholders
+        learning_rate = tf.placeholder(dtype=tf.float32, shape=(),
+                                       name='learn_rate')
+        keep_prob = tf.placeholder_with_default(1., shape=(),
+                                                name='keep_prob')
+
+        ##### Placeholders for words
+        num_words = self.context_size + 1 + self.n_neg
+        feat_emb = self.h['feat_emb_size']
+
+        gram_pl = tf.placeholder(dtype=tf.float32, shape=(None, None, self.gram_segmenter.unique_segments))
+        morph_pl = tf.placeholder(dtype=tf.float32, shape=(None, None, self.morph_segmenter.unique_segments))
+        lemma_pl = tf.placeholder(dtype=tf.float32, shape=(None, None, self.lemma_segmenter.unique_segments))
+
+        all_concat = tf.concat([
+            gram_pl,
+            morph_pl,
+            lemma_pl
+        ], axis=-1)
+
+        context = all_concat[:, :self.context_size, ...]
+        word = all_concat[:, self.context_size, ...]
+        neg = all_concat[:, self.context_size + 1:, ...]
+
+        ##### Embed Context
+        with tf.variable_scope("context_embedding") as ce:
+            context_conv1 = convolutional_layer(context,
+                                                self.h['d_out'],
+                                                (sliding_window_size, context.shape[-1]),
+                                                keep_prob,
+                                                tf.nn.sigmoid)
+
+            context_emb = tf.nn.l2_normalize(pooling_layer(context_conv1), axis=1)
+
+        ##### Word Embedding
+
+        with tf.variable_scope('word_projection') as wp:
+            word_emb = tf.nn.l2_normalize(tf.reshape(
+                embedding_projection(tf.reshape(
+                    word, (-1, all_concat.shape[-1])
+                ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, 1, self.h['d_out'])), axis=-1
+            )
+            wp.reuse_variables()
+            neg_emb = tf.nn.l2_normalize(tf.reshape(
+                embedding_projection(tf.reshape(
+                    neg, (-1, all_concat.shape[-1])
+                ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, self.n_neg, self.h['d_out'])), axis=-1
+            )
+            all_emb = tf.nn.l2_normalize(tf.reshape(
+                embedding_projection(tf.reshape(
+                    all_concat, (-1, all_concat.shape[-1])
+                ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, self.h['d_out'])), axis=-1
+            )
+
+        ##### Loss
+
+        with tf.variable_scope("loss") as loss_context:
+            context_word_sim = cosine_sim(context_emb, word_emb)
+
+            neg_cont_sim = cosine_sim(context_emb, neg_emb)
+
+            word_neg_sim_diff = context_word_sim - neg_cont_sim
+
+            delta_sum = tf.reduce_sum(tf.math.exp(-self.temp * word_neg_sim_diff), axis=-1)
+            log_delta = tf.math.log(1. + delta_sum)
+            loss = tf.reduce_mean(log_delta, name='loss_')
+
+        train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
+
+
+        ###### Final Emb
+
+        # with tf.variable_scope("final_embeddings") as fe:
+        #     word_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, ))
+        #     gram_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_grams))
+        #     morph_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_morph))
+        #     lemma_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.lemma_segmenter.max_len))
+        #
+        #     word_emb_final = tf.nn.embedding_lookup(word_emb_matr, word_pl_final, name='word_lookup_final')
+        #     gram_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl_final, name='gram_lookup_final'), axis=-2)
+        #     morph_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl_final, name='morph_lookup_final'), axis=-2)
+        #     lemma_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl_final, name='lemma_lookup_final'), axis=-2)
+        #
+        #     all = tf.concat([
+        #         word_emb_final,
+        #         gram_emb_final,
+        #         morph_emb_final,
+        #         lemma_emb_final
+        #     ], axis=-1)
+        #
+        #     all_emb = tf.nn.l2_normalize(
+        #         embedding_projection(
+        #             all, self.h['d_out'], self.h['d_out'], keep_prob), axis=-1
+        #     )
+
+        final = all_emb
+
+        saveloss = tf.summary.scalar('loss', loss)
+
+        self.terminals = {
+            'placeholders': [gram_pl, morph_pl, lemma_pl],
+            # 'final_placeholders': [word_pl_final, gram_pl_final, morph_pl_final, lemma_pl_final],
+            'loss': loss,
+            'train': train,
+            'adder': adder,
+            'learning_rate': learning_rate,
+            'batch_count': counter,
+            'final': final,
+            'saveloss': saveloss,
+            'dropout': keep_prob
+        }
+
     def update(self, batch, lr=0.001):
         train_ = self.terminals['train']
         adder_ = self.terminals['adder']
@@ -344,6 +464,7 @@ class SubwordCNN(Skipgram):
         # else:
         placeholders = self.terminals['placeholders']
         n_words = batch.shape[1]
+        n_batch = batch.shape[0]
 
         feed_dict = {
             self.terminals['learning_rate']: learn_rate,
@@ -352,20 +473,32 @@ class SubwordCNN(Skipgram):
 
         segmenters = [self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
 
+        # for ind, (pl, segmenter) in enumerate(zip(placeholders, segmenters)):
+        #     bag = []
+        #     # if saving:
+        #     #     if ind == 0:
+        #     #         feed_dict[pl] = batch
+        #     #     else:
+        #     #         feed_dict[pl] = segmenter.segment(batch)
+        #     # else:
+        #     # if ind == 0:
+        #     #     feed_dict[pl] = batch
+        #     # else:
+        #     for i in range(n_words):
+        #         np
+        #         bag.append(segmenter.segment(batch[:, i])[:, None, :])
+        #     feed_dict[pl] = np.concatenate(bag, axis=1)
+
         for ind, (pl, segmenter) in enumerate(zip(placeholders, segmenters)):
             bag = []
-            # if saving:
-            #     if ind == 0:
-            #         feed_dict[pl] = batch
-            #     else:
-            #         feed_dict[pl] = segmenter.segment(batch)
-            # else:
-            # if ind == 0:
-            #     feed_dict[pl] = batch
-            # else:
-            for i in range(n_words):
-                bag.append(segmenter.segment(batch[:, i])[:, None, :])
-            feed_dict[pl] = np.concatenate(bag, axis=1)
+            for b in range(n_batch):
+                row = []
+                for i in range(n_words):
+                    val = np.zeros((segmenter.unique_segments), dtype=np.int32)
+                    val[segmenter.segment([batch[b, i]])[0]] = 1
+                    row.append(val)
+                bag.append(row)
+            feed_dict[pl] = np.array(bag)
 
         return feed_dict
 
