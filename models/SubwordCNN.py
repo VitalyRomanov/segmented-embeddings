@@ -4,6 +4,7 @@ import tensorflow as tf
 from collections import namedtuple
 from models.Fasttext import denseNDArrayToSparseTensor
 import numpy as np
+from copy import copy
 
 class SubwordCNN(Skipgram):
     def __init__(self, vocab_size=None,
@@ -328,7 +329,8 @@ class SubwordCNN(Skipgram):
 
         ##### Placeholders for words
 
-        all_concat = tf.placeholder(dtype=tf.float32, shape=(None, None, self.feat_space))
+        all_pl = tf.sparse.placeholder(dtype=tf.float32, shape=(None, None, self.feat_space), name="all_pl")
+        all_concat = tf.sparse.to_dense(all_pl, validate_indices=False)
 
         context = all_concat[:, :self.context_size, ...]
         word = all_concat[:, self.context_size, ...]
@@ -338,7 +340,7 @@ class SubwordCNN(Skipgram):
         with tf.variable_scope("context_embedding") as ce:
             context_conv1 = convolutional_layer(context,
                                                 self.h['d_out'],
-                                                (sliding_window_size, context.shape[-1]),
+                                                (sliding_window_size, self.feat_space),
                                                 keep_prob,
                                                 tf.nn.sigmoid)
 
@@ -349,18 +351,18 @@ class SubwordCNN(Skipgram):
         with tf.variable_scope('word_projection') as wp:
             word_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    word, (-1, all_concat.shape[-1])
+                    word, (-1, self.feat_space)
                 ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, 1, self.h['d_out'])), axis=-1
             )
             wp.reuse_variables()
             neg_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    neg, (-1, all_concat.shape[-1])
+                    neg, (-1, self.feat_space)
                 ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, self.n_neg, self.h['d_out'])), axis=-1
             )
             all_emb = tf.nn.l2_normalize(tf.reshape(
                 embedding_projection(tf.reshape(
-                    all_concat, (-1, all_concat.shape[-1])
+                    all_concat, (-1, self.feat_space)
                 ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, self.h['d_out'])), axis=-1
             )
 
@@ -384,7 +386,7 @@ class SubwordCNN(Skipgram):
         saveloss = tf.summary.scalar('loss', loss)
 
         self.terminals = {
-            'placeholders': all_concat,
+            'placeholders': all_pl,
             'loss': loss,
             'train': train,
             'adder': adder,
@@ -440,14 +442,24 @@ class SubwordCNN(Skipgram):
 
         cache[batch.shape][...] = 0
 
+        all = []
         for ind, segmenter in enumerate(segmenters):
             for b in range(n_batch):
                 for i in range(n_words):
-                    seg_ids = np.array(segmenter.w2s[batch[b,i]], dtype=np.int32)
-                    cache[batch.shape][b,i,seg_ids] = 0
+                    c = copy(segmenter.w2s[batch[b,i]])
+                    c.sort()
+                    seg_ids = np.array(c, dtype=np.int32).reshape((-1,1))
+                    b_id = np.full_like(seg_ids, b)
+                    i_id = np.full_like(seg_ids, i)
+                    all.append(np.hstack([b_id, i_id, seg_ids]))
 
-        feed_dict[placeholders] = cache[batch.shape]
-        print(feed_dict[placeholders].shape)
+        a = np.vstack(all)
+
+        feed_dict[placeholders] = tf.SparseTensorValue(a,
+                                                       np.ones((a.shape[0], )),
+                                                       (batch.shape[0], batch.shape[1], self.feat_space))
+
+        print(feed_dict[placeholders])
 
         return feed_dict
 
