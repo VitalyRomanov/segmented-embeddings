@@ -501,7 +501,6 @@ class SubwordCNN(Skipgram):
 
         bbatch = np.zeros((n_batch, n_words, lim))
 
-        print(bbatch.shape)
 
         for i in range(n_words):
             bbatch[:, i, pos_offset[0]:pos_offset[1]] = segmenters[0].segment(batch[:, i])
