@@ -164,6 +164,7 @@ def get_model(args):
                           max_segments=args['segmenter_len'],
                           negative=args['negative'],
                           n_context=args['window_size'] * 2,
+                          batch_size=args['batch_size']
                           )
 
     if args['model_name'] == "skipgram":

@@ -6,6 +6,7 @@ from models.Fasttext import denseNDArrayToSparseTensor
 import numpy as np
 from copy import copy
 
+
 class SubwordCNN(Skipgram):
     def __init__(self, vocab_size=None,
                  emb_size=None,
@@ -16,7 +17,8 @@ class SubwordCNN(Skipgram):
                  graph_path=None,
                  gpu_options=None,
                  ckpt_path=None,
-                 model_name='subwordcnn'):
+                 model_name='subwordcnn',
+                 batch_size=None):
         self.graph_path = graph_path
         self.vocabulary_size = vocab_size
         self.emb_size = emb_size
@@ -29,8 +31,7 @@ class SubwordCNN(Skipgram):
 
         self.max_grams = self.gram_segmenter.max_len
         self.max_morph = self.morph_segmenter.max_len
-        self.segm_voc_size = vocab_size + \
-                             self.gram_segmenter.unique_segments + \
+        self.segm_voc_size = self.gram_segmenter.unique_segments + \
                              self.morph_segmenter.unique_segments + \
                              self.lemma_segmenter.unique_segments
 
@@ -40,6 +41,8 @@ class SubwordCNN(Skipgram):
             'd_out': emb_size,
         }
 
+        self.t_words = n_context + 1 + negative
+        self.batch_size = batch_size
         self.n_neg = negative
         self.context_size = n_context
         self.temp = 100.
@@ -185,8 +188,9 @@ class SubwordCNN(Skipgram):
                                                shape=(self.morph_segmenter.unique_segments,
                                                       self.h['feat_emb_size']))
         lemma_emb_matr = emb_matr_with_padding('lemma',
-                                               shape=(self.lemma_segmenter.unique_segments + self.lemma_segmenter.total_words,
-                                                      self.h['feat_emb_size']))
+                                               shape=(
+                                                   self.lemma_segmenter.unique_segments + self.lemma_segmenter.total_words,
+                                                   self.h['feat_emb_size']))
 
         # word_emb = tf.nn.embedding_lookup(word_emb_matr, words_pl, name='word_lookup')
         gram_emb = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl, name='gram_lookup'), axis=-2)
@@ -271,7 +275,6 @@ class SubwordCNN(Skipgram):
 
         train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
-
         ###### Final Emb
 
         # with tf.variable_scope("final_embeddings") as fe:
@@ -314,12 +317,12 @@ class SubwordCNN(Skipgram):
             'dropout': keep_prob
         }
 
-
     def assemble_model(self):
         counter = tf.Variable(0, dtype=tf.int32)
         adder = tf.assign(counter, counter + 1)
 
         sliding_window_size = 3
+        total_segments = self.max_grams + self.max_morph + self.lemma_segmenter.max_len
 
         ###### Placeholders
         learning_rate = tf.placeholder(dtype=tf.float32, shape=(),
@@ -329,51 +332,99 @@ class SubwordCNN(Skipgram):
 
         ##### Placeholders for words
 
-        all_pl = tf.sparse.placeholder(dtype=tf.float32, shape=(None, None, self.feat_space), name="all_pl")
-        all_concat = tf.sparse.to_dense(all_pl, validate_indices=False)
+        all_pl = tf.sparse.placeholder(dtype=tf.int32, shape=(None, None, total_segments), name="all_pl")
+        final_pl = tf.sparse.placeholder(dtype=tf.int32, shape=(None, total_segments), name="final_pl")
 
-        context = all_concat[:, :self.context_size, ...]
-        word = all_concat[:, self.context_size, ...]
-        neg = all_concat[:, self.context_size + 1:, ...]
+        context = tf.sparse.slice(all_pl,
+                                  [0, 0, 0],
+                                  [self.batch_size, self.context_size, total_segments])
+        word_neg = tf.sparse.slice(all_pl,
+                              [0, self.context_size, 0],
+                              [self.batch_size, self.n_neg + 1, total_segments])
 
-        ##### Embed Context
+        ##### CNN emb
         with tf.variable_scope("context_embedding") as ce:
-            context_conv1 = convolutional_layer(context,
-                                                self.h['d_out'],
-                                                (sliding_window_size, self.feat_space),
-                                                keep_prob,
-                                                tf.nn.sigmoid)
+            cnn_embedding = tf.get_variable("cnn_embedding", shape=(self.segm_voc_size, self.h['d_out']), dtype=tf.float32)
 
-            context_emb = tf.nn.l2_normalize(pooling_layer(context_conv1), axis=1)
+            contexts = []
+            for i in range(0, self.context_size - sliding_window_size):
+                c = tf.sparse.slice(context, [0, i, 0],
+                         [self.batch_size, sliding_window_size, total_segments])
+                contexts.append(tf.expand_dims(tf.reduce_sum(
+                    tf.nn.safe_embedding_lookup_sparse(
+                        embedding_weights=cnn_embedding,
+                        sparse_ids=c,
+                        sparse_weights=None,
+                        combiner="sum"), axis=-2), axis=1,
+                ) )
+
+            context_emb = tf.nn.l2_normalize(tf.reduce_max(tf.concat(
+                contexts, axis=1
+            ), axis=1))
+
 
         ##### Word Embedding
 
         with tf.variable_scope('word_projection') as wp:
-            word_emb = tf.nn.l2_normalize(tf.reshape(
-                embedding_projection(tf.reshape(
-                    word, (-1, self.feat_space)
-                ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, 1, self.h['d_out'])), axis=-1
-            )
+
+            word_emb_h1 = tf.get_variable("word_emb_h1", shape=(self.segm_voc_size, self.h['d_hid']), dtype=tf.float32)
+            bias_word_emb_h1 = tf.get_variable("bias_word_emb_h1", shape=(self.h['d_hid'],), dtype=tf.float32)
+
+            flattenwith_batch = tf.sparse.reshape(word_neg, (-1, total_segments), name="batch_word_neg_flat")
+
+            embed_layer_1 = tf.nn.sigmoid(
+                tf.nn.safe_embedding_lookup_sparse(
+                        embedding_weights=word_emb_h1,
+                        sparse_ids=flattenwith_batch,
+                        sparse_weights=None,
+                        combiner="sum") + bias_word_emb_h1)
+
+            embed_layer_2 = tf.layers.dense(
+                embed_layer_1,
+                self.h['d_out'],
+                activation=tf.nn.sigmoid,
+                name="word_emb_h2")
+
+            embed_normalize = tf.nn.l2_normalize(
+                embed_layer_2,
+                axis=-1)
+
+            batch_word_neg_restored = tf.reshape(embed_normalize,
+                                                 shape=(-1, self.n_neg + 1, self.h['d_out']),
+                                                 name="batch_word_neg_restored")
+
+            word_emb = batch_word_neg_restored[:,0,:]
+            neg_emb = batch_word_neg_restored[:,1:,:]
+
             wp.reuse_variables()
-            neg_emb = tf.nn.l2_normalize(tf.reshape(
-                embedding_projection(tf.reshape(
-                    neg, (-1, self.feat_space)
-                ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, self.n_neg, self.h['d_out'])), axis=-1
-            )
-            all_emb = tf.nn.l2_normalize(tf.reshape(
-                embedding_projection(tf.reshape(
-                    all_concat, (-1, self.feat_space)
-                ), self.h['d_hid'], self.h['d_out'], keep_prob), (-1, self.h['d_out'])), axis=-1
-            )
+
+            final_embed_layer_1 = tf.nn.sigmoid(
+                tf.nn.safe_embedding_lookup_sparse(
+                    embedding_weights=word_emb_h1,
+                    sparse_ids=final_pl,
+                    sparse_weights=None,
+                    combiner="mean") + bias_word_emb_h1)
+
+            final_embed_layer_2 = tf.layers.dense(
+                final_embed_layer_1,
+                self.h['d_out'],
+                activation=tf.nn.sigmoid,
+                name="word_emb_h2")
+
+
+
+
 
         ##### Loss
 
         with tf.variable_scope("loss") as loss_context:
             context_word_sim = cosine_sim(context_emb, word_emb)
 
-            neg_cont_sim = cosine_sim(context_emb, neg_emb)
+            print()
 
-            word_neg_sim_diff = context_word_sim - neg_cont_sim
+            neg_cont_sim = cosine_sim(tf.expand_dims(context_emb, axis=1), neg_emb)
+
+            word_neg_sim_diff = tf.expand_dims(context_word_sim, axis=1) - neg_cont_sim
 
             delta_sum = tf.reduce_sum(tf.math.exp(-self.temp * word_neg_sim_diff), axis=-1)
             log_delta = tf.math.log(1. + delta_sum)
@@ -381,12 +432,13 @@ class SubwordCNN(Skipgram):
 
         train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
 
-        final = all_emb
+        final = tf.nn.l2_normalize(final_embed_layer_2, axis=1)
 
         saveloss = tf.summary.scalar('loss', loss)
 
         self.terminals = {
             'placeholders': all_pl,
+            'final_pl': final_pl,
             'loss': loss,
             'train': train,
             'adder': adder,
@@ -425,7 +477,7 @@ class SubwordCNN(Skipgram):
 
     def prepare_batch(self, batch, learn_rate=0.0, keep_prob=1., saving=False):
 
-        placeholders = self.terminals['placeholders']
+        placeholders = self.terminals['final_pl'] if saving else self.terminals['placeholders']
         n_words = batch.shape[1]
         n_batch = batch.shape[0]
 
@@ -434,31 +486,43 @@ class SubwordCNN(Skipgram):
             self.terminals['dropout']: keep_prob
         }
 
-        segmenters = [self.gram_segmenter, self.morph_segmenter, self.lemma_segmenter]
+        segmenters = [self.lemma_segmenter, self.gram_segmenter, self.morph_segmenter]
+        offset = [
+            0,
+            segmenters[0].unique_segments,
+            segmenters[0].unique_segments + segmenters[1].unique_segments
+        ]
 
-        cache = {}
-        if batch.shape not in cache:
-            cache[batch.shape] = np.zeros((batch.shape[0], batch.shape[1], self.feat_space))
+        indices_ = []
+        values_ = []
 
-        cache[batch.shape][...] = 0
+        lim = self.max_grams + self.max_morph + self.lemma_segmenter.max_len
 
-        all = []
-        for ind, segmenter in enumerate(segmenters):
-            for b in range(n_batch):
-                for i in range(n_words):
-                    c = copy(segmenter.w2s[batch[b,i]])
-                    c.sort()
-                    seg_ids = np.array(c, dtype=np.int32).reshape((-1,1))
-                    b_id = np.full_like(seg_ids, b)
-                    i_id = np.full_like(seg_ids, i)
-                    all.append(np.hstack([b_id, i_id, seg_ids]))
+        for b in range(n_batch):
+            for i in range(n_words):
+                c_pos = 0
+                for ind, segmenter in enumerate(segmenters):
+                    seg_ids = np.array(segmenter.w2s[batch[b, i]], dtype=np.int32).reshape((-1, 1)) + \
+                              offset[ind]
+                    app = seg_ids[:lim - c_pos]
+                    b_id = np.full((app.size, 1), b)
+                    i_id = np.full((app.size, 1), i)
+                    s_id = np.arange(c_pos, c_pos + app.size, 1).reshape(-1, 1)
+                    c_pos += app.size
+                    indices_.append(np.hstack([b_id, i_id, s_id]))
+                    values_.append(app)
 
-        a = np.vstack(all)
+        indices = np.vstack(indices_)
+        values = np.concatenate(values_)
+        shape = (batch.shape[0], batch.shape[1], lim)
 
-        feed_dict[placeholders] = tf.SparseTensorValue(a,
-                                                       np.ones((a.shape[0], )),
-                                                       (batch.shape[0], batch.shape[1], self.feat_space))
+        if saving:
+            indices = np.delete(indices, 1, axis=1)
+            shape = (batch.shape[0], lim)
 
+        feed_dict[placeholders] = tf.SparseTensorValue(indices,
+                                                       values.reshape((-1,)),
+                                                       shape)
 
         return feed_dict
 
@@ -481,7 +545,9 @@ class SubwordCNN(Skipgram):
         final = []
         batch_size = 50
         for offset in range(0, self.vocabulary_size, batch_size):
-            feed_dict = self.prepare_batch(np.array(list(range(offset, min(offset + batch_size, self.vocabulary_size))), dtype=np.int32).reshape((-1,1)), saving=True)
+            feed_dict = self.prepare_batch(
+                np.array(list(range(offset, min(offset + batch_size, self.vocabulary_size))), dtype=np.int32).reshape(
+                    (-1, 1)), saving=True)
             embs = self.sess.run(self.terminals['final'], feed_dict)
             final.append(embs)
 
