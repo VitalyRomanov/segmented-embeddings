@@ -25,15 +25,15 @@ class SubwordCNN(Skipgram):
         self.model_name = model_name
         self.ckpt_path = ckpt_path
 
-        # self.gram_segmenter = WordSegmenter(segmenter_path[0], max_segments[0], vocab_size, include_word=False)
+        self.gram_segmenter = WordSegmenter(segmenter_path[0], max_segments[0], vocab_size, include_word=False)
         self.morph_segmenter = WordSegmenter(segmenter_path[1], max_segments[1], vocab_size, include_word=False)
         self.lemma_segmenter = WordSegmenter(segmenter_path[2], max_segments[2], vocab_size, include_word=False)
 
-        # self.max_grams = self.gram_segmenter.max_len
+        self.max_grams = self.gram_segmenter.max_len
         self.max_morph = self.morph_segmenter.max_len
         self.segm_voc_size = self.morph_segmenter.unique_segments + \
-                             self.lemma_segmenter.unique_segments #+ \
-                             # self.gram_segmenter.unique_segments
+                             self.lemma_segmenter.unique_segments + \
+                             self.gram_segmenter.unique_segments
 
         self.h = {
             'feat_emb_size': 100,
@@ -482,8 +482,8 @@ class SubwordCNN(Skipgram):
             self.terminals['dropout']: keep_prob
         }
 
-        # segmenters = [self.lemma_segmenter, self.gram_segmenter, self.morph_segmenter]
-        segmenters = [self.lemma_segmenter, self.morph_segmenter]
+        segmenters = [self.lemma_segmenter, self.gram_segmenter, self.morph_segmenter]
+        # segmenters = [self.lemma_segmenter, self.morph_segmenter]
         # offset = [
         #     0,
         #     segmenters[0].unique_segments,
@@ -493,25 +493,25 @@ class SubwordCNN(Skipgram):
             0,
             segmenters[0].max_len,
             segmenters[0].max_len + segmenters[1].max_len,
-            # segmenters[0].max_len + segmenters[1].max_len + segmenters[2].max_len
+            segmenters[0].max_len + segmenters[1].max_len + segmenters[2].max_len
         ]
 
         indices_ = []
         values_ = []
 
-        lim = self.max_morph + self.lemma_segmenter.max_len #+ self.max_grams
+        lim = self.max_morph + self.lemma_segmenter.max_len + self.max_grams
 
         bbatch = np.zeros((n_batch, n_words, lim))
 
         for i in range(n_words):
             bbatch[:, i, pos_offset[0]:pos_offset[1]] = segmenters[0].segment(batch[:, i])
             bbatch[:, i, pos_offset[1]:pos_offset[2]] = segmenters[0].segment(batch[:, i])
-            # bbatch[:, i, pos_offset[2]:pos_offset[3]] = segmenters[0].segment(batch[:, i])
+            bbatch[:, i, pos_offset[2]:pos_offset[3]] = segmenters[0].segment(batch[:, i])
 
         restricted = [segmenter.padding for segmenter in segmenters]
 
-        # indices = np.where((bbatch != restricted[0]) & (bbatch != restricted[1]) & (bbatch != restricted[2]))
-        indices = np.where((bbatch != restricted[0]) & (bbatch != restricted[1]))
+        indices = np.where((bbatch != restricted[0]) & (bbatch != restricted[1]) & (bbatch != restricted[2]))
+        # indices = np.where((bbatch != restricted[0]) & (bbatch != restricted[1]))
         values = bbatch[indices]
         shape = bbatch.shape
 
