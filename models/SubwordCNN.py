@@ -25,15 +25,15 @@ class SubwordCNN(Skipgram):
         self.model_name = model_name
         self.ckpt_path = ckpt_path
 
-        self.gram_segmenter = WordSegmenter(segmenter_path[0], max_segments[0], vocab_size, include_word=False)
+        # self.gram_segmenter = WordSegmenter(segmenter_path[0], max_segments[0], vocab_size, include_word=False)
         self.morph_segmenter = WordSegmenter(segmenter_path[1], max_segments[1], vocab_size, include_word=False)
         self.lemma_segmenter = WordSegmenter(segmenter_path[2], max_segments[2], vocab_size, include_word=False)
 
-        self.max_grams = self.gram_segmenter.max_len
+        # self.max_grams = self.gram_segmenter.max_len
         self.max_morph = self.morph_segmenter.max_len
-        self.segm_voc_size = self.gram_segmenter.unique_segments + \
-                             self.morph_segmenter.unique_segments + \
-                             self.lemma_segmenter.unique_segments
+        self.segm_voc_size = self.morph_segmenter.unique_segments + \
+                             self.lemma_segmenter.unique_segments #+ \
+                             # self.gram_segmenter.unique_segments
 
         self.h = {
             'feat_emb_size': 100,
@@ -46,7 +46,7 @@ class SubwordCNN(Skipgram):
         self.n_neg = negative
         self.context_size = n_context
         self.temp = 100.
-        self.feat_space = self.gram_segmenter.unique_segments + self.morph_segmenter.unique_segments + self.lemma_segmenter.unique_segments
+        # self.feat_space = self.gram_segmenter.unique_segments + self.morph_segmenter.unique_segments + self.lemma_segmenter.unique_segments
 
         self.assemble_model()
 
@@ -322,7 +322,7 @@ class SubwordCNN(Skipgram):
         adder = tf.assign(counter, counter + 1)
 
         sliding_window_size = 3
-        total_segments = self.max_grams + self.max_morph + self.lemma_segmenter.max_len
+        total_segments = self.max_morph + self.lemma_segmenter.max_len #+ self.max_grams
 
         ###### Placeholders
         learning_rate = tf.placeholder(dtype=tf.float32, shape=(),
@@ -358,7 +358,7 @@ class SubwordCNN(Skipgram):
                         sparse_ids=c,
                         sparse_weights=None,
                         combiner="sum"), axis=-2) + tf.reshape(cnn_bias, (1, -1)), axis=1,
-                )))
+                                                          )))
 
             context_emb = tf.nn.l2_normalize(tf.reduce_max(tf.concat(
                 contexts, axis=1
@@ -482,7 +482,8 @@ class SubwordCNN(Skipgram):
             self.terminals['dropout']: keep_prob
         }
 
-        segmenters = [self.lemma_segmenter, self.gram_segmenter, self.morph_segmenter]
+        # segmenters = [self.lemma_segmenter, self.gram_segmenter, self.morph_segmenter]
+        segmenters = [self.lemma_segmenter, self.morph_segmenter]
         # offset = [
         #     0,
         #     segmenters[0].unique_segments,
@@ -492,25 +493,25 @@ class SubwordCNN(Skipgram):
             0,
             segmenters[0].max_len,
             segmenters[0].max_len + segmenters[1].max_len,
-            segmenters[0].max_len + segmenters[1].max_len + segmenters[2].max_len
+            # segmenters[0].max_len + segmenters[1].max_len + segmenters[2].max_len
         ]
 
         indices_ = []
         values_ = []
 
-        lim = self.max_grams + self.max_morph + self.lemma_segmenter.max_len
+        lim = self.max_morph + self.lemma_segmenter.max_len #+ self.max_grams
 
         bbatch = np.zeros((n_batch, n_words, lim))
-
 
         for i in range(n_words):
             bbatch[:, i, pos_offset[0]:pos_offset[1]] = segmenters[0].segment(batch[:, i])
             bbatch[:, i, pos_offset[1]:pos_offset[2]] = segmenters[0].segment(batch[:, i])
-            bbatch[:, i, pos_offset[2]:pos_offset[3]] = segmenters[0].segment(batch[:, i])
+            # bbatch[:, i, pos_offset[2]:pos_offset[3]] = segmenters[0].segment(batch[:, i])
 
         restricted = [segmenter.padding for segmenter in segmenters]
 
-        indices = np.where((bbatch != restricted[0])&(bbatch != restricted[1])&(bbatch != restricted[2]))
+        # indices = np.where((bbatch != restricted[0]) & (bbatch != restricted[1]) & (bbatch != restricted[2]))
+        indices = np.where((bbatch != restricted[0]) & (bbatch != restricted[1]))
         values = bbatch[indices]
         shape = bbatch.shape
 
@@ -646,7 +647,6 @@ def embed(emb_matr, subword):
 
 def cosine_sim(emb1, emb2):
     return tf.reduce_sum(emb1 * emb2, axis=-1)
-
 
 # def bulk_cosine_sim(single, context):
 #     return tf.reduce_sum(tf.expand_dims(single, axis=2) * context, axis=1)
