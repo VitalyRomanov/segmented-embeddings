@@ -47,7 +47,7 @@ def parse_args():
                              "morpheme_segmentation/" + args.language
             args.segmenter_len = "15__8"
         elif args.model_name == "subwordcnn":
-            args.segmenter = "n_gram_segmentation/" + args.language + \
+            args.segmenter = "3_gram_segmentation/" + args.language + \
                              "__" + \
                              "morpheme_segmentation/" + args.language + \
                              "__" + \

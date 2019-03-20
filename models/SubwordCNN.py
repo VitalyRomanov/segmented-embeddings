@@ -157,165 +157,165 @@ class SubwordCNN(Skipgram):
     #         'dropout': keep_prob
     #     }
 
-    def assemble_model_emb_based(self):
-        counter = tf.Variable(0, dtype=tf.int32)
-        adder = tf.assign(counter, counter + 1)
-
-        sliding_window_size = 3
-
-        ###### Placeholders
-        learning_rate = tf.placeholder(dtype=tf.float32, shape=(),
-                                       name='learn_rate')
-        keep_prob = tf.placeholder_with_default(1., shape=(),
-                                                name='keep_prob')
-
-        ##### Placeholders for words
-        num_words = self.context_size + 1 + self.n_neg
-        feat_emb = self.h['feat_emb_size']
-
-        # words_pl = tf.placeholder(dtype=tf.int32, shape=(None, None))
-        gram_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.max_grams))
-        morph_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.max_morph))
-        lemma_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.lemma_segmenter.max_len))
-
-        # word_emb_matr = emb_matr_with_padding('word',
-        #                                       shape=(self.vocabulary_size,
-        #                                              self.h['feat_emb_size']))
-        gram_emb_matr = emb_matr_with_padding('gram',
-                                              shape=(self.gram_segmenter.unique_segments,
-                                                     self.h['feat_emb_size']))
-        morph_emb_matr = emb_matr_with_padding('morph',
-                                               shape=(self.morph_segmenter.unique_segments,
-                                                      self.h['feat_emb_size']))
-        lemma_emb_matr = emb_matr_with_padding('lemma',
-                                               shape=(
-                                                   self.lemma_segmenter.unique_segments + self.lemma_segmenter.total_words,
-                                                   self.h['feat_emb_size']))
-
-        # word_emb = tf.nn.embedding_lookup(word_emb_matr, words_pl, name='word_lookup')
-        gram_emb = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl, name='gram_lookup'), axis=-2)
-        morph_emb = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl, name='morph_lookup'), axis=-2)
-        lemma_emb = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl, name='lemma_lookup'), axis=-2)
-
-        all_concat = tf.concat([
-            # word_emb,
-            gram_emb,
-            morph_emb,
-            lemma_emb
-        ], axis=-1)
-
-        context = all_concat[:, :self.context_size, ...]
-        word = all_concat[:, self.context_size, ...]
-        neg = all_concat[:, self.context_size + 1:, ...]
-
-        # context = tf.concat([
-        #     word_emb[:, :self.context_size, ...],
-        #     gram_emb[:, :self.context_size, ...],
-        #     morph_emb[:, :self.context_size, ...],
-        #     lemma_emb[:, :self.context_size, ...]
-        # ], axis=-1)
-        # # shape (None, context_size, feat_emb * 3)
-        #
-        # word = tf.concat([
-        #     word_emb[:, self.context_size, ...],
-        #     gram_emb[:, self.context_size, ...],
-        #     morph_emb[:, self.context_size, ...],
-        #     lemma_emb[:, self.context_size, ...]
-        # ], axis=-1)
-        #
-        # neg = tf.concat([
-        #     word_emb[:, self.context_size + 1:, ...],
-        #     gram_emb[:, self.context_size + 1:, ...],
-        #     morph_emb[:, self.context_size + 1:, ...],
-        #     lemma_emb[:, self.context_size + 1:, ...]
-        # ], axis=-1)
-
-        ##### Embed Context
-        with tf.variable_scope("context_embedding") as ce:
-            context_conv1 = convolutional_layer(context,
-                                                self.h['d_out'],
-                                                (sliding_window_size, context.shape[2]),
-                                                keep_prob,
-                                                tf.nn.sigmoid)
-
-            context_emb = tf.nn.l2_normalize(pooling_layer(context_conv1), axis=1)
-
-        ##### Word Embedding
-
-        with tf.variable_scope('word_projection') as wp:
-            word_emb = tf.nn.l2_normalize(tf.reshape(
-                embedding_projection(tf.reshape(
-                    word, (-1, feat_emb * 3)
-                ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, 1, self.h['d_out'])), axis=-1
-            )
-            wp.reuse_variables()
-            neg_emb = tf.nn.l2_normalize(tf.reshape(
-                embedding_projection(tf.reshape(
-                    neg, (-1, feat_emb * 3)
-                ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.n_neg, self.h['d_out'])), axis=-1
-            )
-            all_emb = tf.nn.l2_normalize(tf.reshape(
-                embedding_projection(tf.reshape(
-                    all_concat, (-1, feat_emb * 3)
-                ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.h['d_out'])), axis=-1
-            )
-
-        ##### Loss
-
-        with tf.variable_scope("loss") as loss_context:
-            context_word_sim = cosine_sim(context_emb, word_emb)
-
-            neg_cont_sim = cosine_sim(context_emb, neg_emb)
-
-            word_neg_sim_diff = context_word_sim - neg_cont_sim
-
-            delta_sum = tf.reduce_sum(tf.math.exp(-self.temp * word_neg_sim_diff), axis=-1)
-            log_delta = tf.math.log(1. + delta_sum)
-            loss = tf.reduce_mean(log_delta, name='loss_')
-
-        train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
-
-        ###### Final Emb
-
-        # with tf.variable_scope("final_embeddings") as fe:
-        #     word_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, ))
-        #     gram_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_grams))
-        #     morph_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_morph))
-        #     lemma_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.lemma_segmenter.max_len))
-        #
-        #     word_emb_final = tf.nn.embedding_lookup(word_emb_matr, word_pl_final, name='word_lookup_final')
-        #     gram_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl_final, name='gram_lookup_final'), axis=-2)
-        #     morph_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl_final, name='morph_lookup_final'), axis=-2)
-        #     lemma_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl_final, name='lemma_lookup_final'), axis=-2)
-        #
-        #     all = tf.concat([
-        #         word_emb_final,
-        #         gram_emb_final,
-        #         morph_emb_final,
-        #         lemma_emb_final
-        #     ], axis=-1)
-        #
-        #     all_emb = tf.nn.l2_normalize(
-        #         embedding_projection(
-        #             all, self.h['d_out'], self.h['d_out'], keep_prob), axis=-1
-        #     )
-
-        final = all_emb
-
-        saveloss = tf.summary.scalar('loss', loss)
-
-        self.terminals = {
-            'placeholders': [gram_pl, morph_pl, lemma_pl],
-            # 'final_placeholders': [word_pl_final, gram_pl_final, morph_pl_final, lemma_pl_final],
-            'loss': loss,
-            'train': train,
-            'adder': adder,
-            'learning_rate': learning_rate,
-            'batch_count': counter,
-            'final': final,
-            'saveloss': saveloss,
-            'dropout': keep_prob
-        }
+    # def assemble_model_emb_based(self):
+    #     counter = tf.Variable(0, dtype=tf.int32)
+    #     adder = tf.assign(counter, counter + 1)
+    #
+    #     sliding_window_size = 3
+    #
+    #     ###### Placeholders
+    #     learning_rate = tf.placeholder(dtype=tf.float32, shape=(),
+    #                                    name='learn_rate')
+    #     keep_prob = tf.placeholder_with_default(1., shape=(),
+    #                                             name='keep_prob')
+    #
+    #     ##### Placeholders for words
+    #     num_words = self.context_size + 1 + self.n_neg
+    #     feat_emb = self.h['feat_emb_size']
+    #
+    #     # words_pl = tf.placeholder(dtype=tf.int32, shape=(None, None))
+    #     gram_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.max_grams))
+    #     morph_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.max_morph))
+    #     lemma_pl = tf.placeholder(dtype=tf.int32, shape=(None, None, self.lemma_segmenter.max_len))
+    #
+    #     # word_emb_matr = emb_matr_with_padding('word',
+    #     #                                       shape=(self.vocabulary_size,
+    #     #                                              self.h['feat_emb_size']))
+    #     gram_emb_matr = emb_matr_with_padding('gram',
+    #                                           shape=(self.gram_segmenter.unique_segments,
+    #                                                  self.h['feat_emb_size']))
+    #     morph_emb_matr = emb_matr_with_padding('morph',
+    #                                            shape=(self.morph_segmenter.unique_segments,
+    #                                                   self.h['feat_emb_size']))
+    #     lemma_emb_matr = emb_matr_with_padding('lemma',
+    #                                            shape=(
+    #                                                self.lemma_segmenter.unique_segments + self.lemma_segmenter.total_words,
+    #                                                self.h['feat_emb_size']))
+    #
+    #     # word_emb = tf.nn.embedding_lookup(word_emb_matr, words_pl, name='word_lookup')
+    #     gram_emb = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl, name='gram_lookup'), axis=-2)
+    #     morph_emb = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl, name='morph_lookup'), axis=-2)
+    #     lemma_emb = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl, name='lemma_lookup'), axis=-2)
+    #
+    #     all_concat = tf.concat([
+    #         # word_emb,
+    #         gram_emb,
+    #         morph_emb,
+    #         lemma_emb
+    #     ], axis=-1)
+    #
+    #     context = all_concat[:, :self.context_size, ...]
+    #     word = all_concat[:, self.context_size, ...]
+    #     neg = all_concat[:, self.context_size + 1:, ...]
+    #
+    #     # context = tf.concat([
+    #     #     word_emb[:, :self.context_size, ...],
+    #     #     gram_emb[:, :self.context_size, ...],
+    #     #     morph_emb[:, :self.context_size, ...],
+    #     #     lemma_emb[:, :self.context_size, ...]
+    #     # ], axis=-1)
+    #     # # shape (None, context_size, feat_emb * 3)
+    #     #
+    #     # word = tf.concat([
+    #     #     word_emb[:, self.context_size, ...],
+    #     #     gram_emb[:, self.context_size, ...],
+    #     #     morph_emb[:, self.context_size, ...],
+    #     #     lemma_emb[:, self.context_size, ...]
+    #     # ], axis=-1)
+    #     #
+    #     # neg = tf.concat([
+    #     #     word_emb[:, self.context_size + 1:, ...],
+    #     #     gram_emb[:, self.context_size + 1:, ...],
+    #     #     morph_emb[:, self.context_size + 1:, ...],
+    #     #     lemma_emb[:, self.context_size + 1:, ...]
+    #     # ], axis=-1)
+    #
+    #     ##### Embed Context
+    #     with tf.variable_scope("context_embedding") as ce:
+    #         context_conv1 = convolutional_layer(context,
+    #                                             self.h['d_out'],
+    #                                             (sliding_window_size, context.shape[2]),
+    #                                             keep_prob,
+    #                                             tf.nn.tanh)
+    #
+    #         context_emb = tf.nn.l2_normalize(pooling_layer(context_conv1), axis=1)
+    #
+    #     ##### Word Embedding
+    #
+    #     with tf.variable_scope('word_projection') as wp:
+    #         word_emb = tf.nn.l2_normalize(tf.reshape(
+    #             embedding_projection(tf.reshape(
+    #                 word, (-1, feat_emb * 3)
+    #             ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, 1, self.h['d_out'])), axis=-1
+    #         )
+    #         wp.reuse_variables()
+    #         neg_emb = tf.nn.l2_normalize(tf.reshape(
+    #             embedding_projection(tf.reshape(
+    #                 neg, (-1, feat_emb * 3)
+    #             ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.n_neg, self.h['d_out'])), axis=-1
+    #         )
+    #         all_emb = tf.nn.l2_normalize(tf.reshape(
+    #             embedding_projection(tf.reshape(
+    #                 all_concat, (-1, feat_emb * 3)
+    #             ), self.h['d_out'], self.h['d_out'], keep_prob), (-1, self.h['d_out'])), axis=-1
+    #         )
+    #
+    #     ##### Loss
+    #
+    #     with tf.variable_scope("loss") as loss_context:
+    #         context_word_sim = cosine_sim(context_emb, word_emb)
+    #
+    #         neg_cont_sim = cosine_sim(context_emb, neg_emb)
+    #
+    #         word_neg_sim_diff = context_word_sim - neg_cont_sim
+    #
+    #         delta_sum = tf.reduce_sum(tf.math.exp(-self.temp * word_neg_sim_diff), axis=-1)
+    #         log_delta = tf.math.log(1. + delta_sum)
+    #         loss = tf.reduce_mean(log_delta, name='loss_')
+    #
+    #     train = tf.contrib.opt.LazyAdamOptimizer(learning_rate).minimize(loss)
+    #
+    #     ###### Final Emb
+    #
+    #     # with tf.variable_scope("final_embeddings") as fe:
+    #     #     word_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, ))
+    #     #     gram_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_grams))
+    #     #     morph_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.max_morph))
+    #     #     lemma_pl_final = tf.placeholder(dtype=tf.int32, shape=(None, self.lemma_segmenter.max_len))
+    #     #
+    #     #     word_emb_final = tf.nn.embedding_lookup(word_emb_matr, word_pl_final, name='word_lookup_final')
+    #     #     gram_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(gram_emb_matr, gram_pl_final, name='gram_lookup_final'), axis=-2)
+    #     #     morph_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(morph_emb_matr, morph_pl_final, name='morph_lookup_final'), axis=-2)
+    #     #     lemma_emb_final = tf.reduce_sum(tf.nn.embedding_lookup(lemma_emb_matr, lemma_pl_final, name='lemma_lookup_final'), axis=-2)
+    #     #
+    #     #     all = tf.concat([
+    #     #         word_emb_final,
+    #     #         gram_emb_final,
+    #     #         morph_emb_final,
+    #     #         lemma_emb_final
+    #     #     ], axis=-1)
+    #     #
+    #     #     all_emb = tf.nn.l2_normalize(
+    #     #         embedding_projection(
+    #     #             all, self.h['d_out'], self.h['d_out'], keep_prob), axis=-1
+    #     #     )
+    #
+    #     final = all_emb
+    #
+    #     saveloss = tf.summary.scalar('loss', loss)
+    #
+    #     self.terminals = {
+    #         'placeholders': [gram_pl, morph_pl, lemma_pl],
+    #         # 'final_placeholders': [word_pl_final, gram_pl_final, morph_pl_final, lemma_pl_final],
+    #         'loss': loss,
+    #         'train': train,
+    #         'adder': adder,
+    #         'learning_rate': learning_rate,
+    #         'batch_count': counter,
+    #         'final': final,
+    #         'saveloss': saveloss,
+    #         'dropout': keep_prob
+    #     }
 
     def assemble_model(self):
         counter = tf.Variable(0, dtype=tf.int32)
@@ -346,18 +346,19 @@ class SubwordCNN(Skipgram):
         with tf.variable_scope("context_embedding") as ce:
             cnn_embedding = tf.get_variable("cnn_embedding", shape=(self.segm_voc_size, self.h['d_out']),
                                             dtype=tf.float32)
+            cnn_bias = tf.get_variable("cnn_bias", shape=(self.h['d_out'],), dtype=tf.float32)
 
             contexts = []
             for i in range(0, self.context_size - sliding_window_size):
                 c = tf.sparse.slice(context, [0, i, 0],
                                     [self.batch_size, sliding_window_size, total_segments])
-                contexts.append(tf.expand_dims(tf.reduce_sum(
+                contexts.append(tf.nn.tanh(tf.expand_dims(tf.reduce_sum(
                     tf.nn.safe_embedding_lookup_sparse(
                         embedding_weights=cnn_embedding,
                         sparse_ids=c,
                         sparse_weights=None,
-                        combiner="sum"), axis=-2), axis=1,
-                ))
+                        combiner="sum"), axis=-2) + tf.reshape(cnn_bias, (1, -1)), axis=1,
+                )))
 
             context_emb = tf.nn.l2_normalize(tf.reduce_max(tf.concat(
                 contexts, axis=1
@@ -371,7 +372,7 @@ class SubwordCNN(Skipgram):
 
             flattenwith_batch = tf.sparse.reshape(word_neg, (-1, total_segments), name="batch_word_neg_flat")
 
-            embed_layer_1 = tf.nn.sigmoid(
+            embed_layer_1 = tf.nn.tanh(
                 tf.nn.safe_embedding_lookup_sparse(
                     embedding_weights=word_emb_h1,
                     sparse_ids=flattenwith_batch,
@@ -381,7 +382,7 @@ class SubwordCNN(Skipgram):
             embed_layer_2 = tf.layers.dense(
                 embed_layer_1,
                 self.h['d_out'],
-                activation=tf.nn.sigmoid,
+                activation=tf.nn.tanh,
                 name="word_emb_h2")
 
             embed_normalize = tf.nn.l2_normalize(
@@ -397,7 +398,7 @@ class SubwordCNN(Skipgram):
 
             wp.reuse_variables()
 
-            final_embed_layer_1 = tf.nn.sigmoid(
+            final_embed_layer_1 = tf.nn.tanh(
                 tf.nn.safe_embedding_lookup_sparse(
                     embedding_weights=word_emb_h1,
                     sparse_ids=final_pl,
@@ -407,7 +408,7 @@ class SubwordCNN(Skipgram):
             final_embed_layer_2 = tf.layers.dense(
                 final_embed_layer_1,
                 self.h['d_out'],
-                activation=tf.nn.sigmoid,
+                activation=tf.nn.tanh,
                 name="word_emb_h2")
 
         ##### Loss
@@ -635,17 +636,17 @@ def embed(emb_matr, subword):
     return tf.concat([gram_emb, morph_emb, lemma_emb], axis=1)
 
 
-def embedding_projection(input_, emb_h1, emb_h2, kp):
-    # input_drop = tf.nn.dropout(input_, keep_prob=kp, name="drop_1")
-    h1 = tf.layers.dense(input_, emb_h1, activation=tf.nn.sigmoid, name='projection_layer_1')
-    # h1_drop = tf.nn.dropout(h1, keep_prob=kp, name="drop_2")
-    h2 = tf.layers.dense(h1, emb_h2, activation=tf.nn.sigmoid, name='projection_layer_2')
-    return h2
+# def embedding_projection(input_, emb_h1, emb_h2, kp):
+#     # input_drop = tf.nn.dropout(input_, keep_prob=kp, name="drop_1")
+#     h1 = tf.layers.dense(input_, emb_h1, activation=tf.nn.sigmoid, name='projection_layer_1')
+#     # h1_drop = tf.nn.dropout(h1, keep_prob=kp, name="drop_2")
+#     h2 = tf.layers.dense(h1, emb_h2, activation=tf.nn.sigmoid, name='projection_layer_2')
+#     return h2
 
 
 def cosine_sim(emb1, emb2):
     return tf.reduce_sum(emb1 * emb2, axis=-1)
 
 
-def bulk_cosine_sim(single, context):
-    return tf.reduce_sum(tf.expand_dims(single, axis=2) * context, axis=1)
+# def bulk_cosine_sim(single, context):
+#     return tf.reduce_sum(tf.expand_dims(single, axis=2) * context, axis=1)
